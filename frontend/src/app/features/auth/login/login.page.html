@@ -1,0 +1,53 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar color="primary">
+    <ion-title class="ion-text-center">
+      Afinia
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding auth-content">
+  <div class="auth-container">
+    <div class="logo-container ion-text-center ion-margin-bottom">
+      <h1 class="app-title">Bienvenido a Afinia</h1>
+      <p class="subtitle">Encuentra a tu pareja ideal basada en datos.</p>
+    </div>
+
+    <form (ngSubmit)="onLogin()">
+      <ion-item class="custom-input" lines="none">
+        <ion-icon name="mail-outline" slot="start" color="medium"></ion-icon>
+        <ion-input 
+          type="email" 
+          placeholder="Correo electrónico" 
+          [(ngModel)]="email" 
+          name="email" 
+          required>
+        </ion-input>
+      </ion-item>
+
+      <ion-item class="custom-input ion-margin-top" lines="none">
+        <ion-icon name="lock-closed-outline" slot="start" color="medium"></ion-icon>
+        <ion-input 
+          type="password" 
+          placeholder="Contraseña" 
+          [(ngModel)]="password" 
+          name="password" 
+          required>
+        </ion-input>
+      </ion-item>
+
+      <ion-button 
+        expand="block" 
+        color="primary" 
+        class="ion-margin-top primary-btn" 
+        type="submit" 
+        [disabled]="!email || !password">
+        Ingresar
+      </ion-button>
+    </form>
+
+    <div class="ion-text-center ion-margin-top">
+      <a routerLink="/features/auth/register" class="link-text">¿No tienes cuenta? Regístrate</a>
+    </div>
+  </div>
+</ion-content>
