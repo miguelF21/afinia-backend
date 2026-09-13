@@ -4,7 +4,6 @@ services:
   db:
     image: postgres:15
     container_name: afinia_db
-    restart: always
     environment:
       POSTGRES_USER: afinia_user
       POSTGRES_PASSWORD: afinia_password
@@ -12,7 +11,27 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build: 
+      context: ./backend
+    container_name: afinia_backend
+    environment:
+      DATABASE_URL: postgresql://afinia_user:afinia_password@db:5432/afinia_db
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: afinia_frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
 
 volumes:
-  postgres_data:
+  pgdata:
