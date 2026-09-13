@@ -1,13 +1,62 @@
-<ion-header [translucent]="true">
+<ion-header class="ion-no-border">
   <ion-toolbar>
-    <ion-title>dashboard</ion-title>
+    <ion-buttons slot="start">
+      <ion-menu-button color="primary"></ion-menu-button>
+    </ion-buttons>
+    <ion-title class="ion-text-center">Descubrir</ion-title>
+    <ion-buttons slot="end">
+      <ion-button routerLink="/features/profile">
+        <ion-icon name="person-circle-outline" color="medium"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">dashboard</ion-title>
-    </ion-toolbar>
-  </ion-header>
+<ion-content class="ion-padding dashboard-content">
+  <!-- Tarjeta de Perfil -->
+  <div class="swipe-container" *ngIf="currentProfile; else noMoreProfiles">
+    <ion-card class="profile-card">
+      <div class="image-placeholder">
+        <ion-icon name="person-outline" class="placeholder-icon"></ion-icon>
+      </div>
+      
+      <ion-card-header>
+        <ion-card-title>
+          {{ currentProfile.first_name }}, {{ currentProfile.age }}
+        </ion-card-title>
+        <ion-card-subtitle>
+          <ion-icon name="location-outline"></ion-icon> {{ currentProfile.city }}
+        </ion-card-subtitle>
+      </ion-card-header>
+
+      <ion-card-content>
+        <p class="bio-text">{{ currentProfile.bio }}</p>
+        
+        <!-- ML Afinidad Tag -->
+        <div class="affinity-badge" *ngIf="currentProfile.affinityScore">
+          <ion-icon name="sparkles"></ion-icon>
+          Afinidad predictiva: {{ currentProfile.affinityScore }}%
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Botones de Acción -->
+    <div class="action-buttons ion-margin-top">
+      <ion-fab-button color="danger" class="pass-btn" (click)="onPass()">
+        <ion-icon name="close-outline"></ion-icon>
+      </ion-fab-button>
+      
+      <ion-fab-button color="success" class="like-btn" (click)="onLike()">
+        <ion-icon name="heart-outline"></ion-icon>
+      </ion-fab-button>
+    </div>
+  </div>
+
+  <ng-template #noMoreProfiles>
+    <div class="empty-state ion-text-center">
+      <ion-icon name="search-outline" color="medium"></ion-icon>
+      <h2>No hay más perfiles</h2>
+      <p>Vuelve más tarde para descubrir nuevas personas compatibles contigo.</p>
+    </div>
+  </ng-template>
 </ion-content>
