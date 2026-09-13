@@ -5,7 +5,9 @@ from sklearn.dummy import DummyClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import classification_report, accuracy_score
 
-def train_baselines(X, y):
+from sklearn.pipeline import Pipeline
+
+def train_baselines(X, y, preprocessor):
     """
     Entrena los modelos iniciales con validación cruzada estratificada (K=5).
     Modelos:
@@ -24,8 +26,12 @@ def train_baselines(X, y):
     results = {}
     
     for name, model in models.items():
+        # Crear pipeline completo
+        clf = Pipeline(steps=[('preprocessor', preprocessor),
+                              ('classifier', model)])
+                              
         # Evaluamos usando CV
-        cv_results = cross_validate(model, X, y, cv=skf, scoring=['accuracy', 'precision', 'recall', 'f1_macro'])
+        cv_results = cross_validate(clf, X, y, cv=skf, scoring=['accuracy', 'precision', 'recall', 'f1_macro'])
         results[name] = cv_results
         
         print(f"--- {name} ---")
@@ -36,4 +42,23 @@ def train_baselines(X, y):
     return results
 
 if __name__ == '__main__':
-    print("Módulo de entrenamiento base. Esperando X, y.")
+    from load_data import load_raw_data
+    from clean_data import clean_data
+    from preprocessing import get_preprocessor
+    
+    # 1. Cargar datos
+    raw = load_raw_data("dataset_encuesta.csv")
+    
+    # 2. Limpiar
+    df = clean_data(raw)
+    
+    # 3. Separar X e y
+    X = df.drop(columns=['target'])
+    y = df['target']
+    
+    # 4. Obtener preprocesador
+    prep = get_preprocessor(X)
+    
+    # 5. Entrenar baselines
+    print("Iniciando entrenamiento base...")
+    train_baselines(X, y, prep)

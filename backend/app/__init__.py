@@ -19,6 +19,9 @@ def create_app(config_class=Config):
     
     from app.api.profile import bp as profile_bp
     app.register_blueprint(profile_bp, url_prefix='/api/v1/profile')
+    
+    from app.api.analytics import bp as analytics_bp
+    app.register_blueprint(analytics_bp, url_prefix='/api/v1/analytics')
 
     @app.route('/health', methods=['GET'])
     def health_check():
