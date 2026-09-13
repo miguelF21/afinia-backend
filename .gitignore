@@ -1,0 +1,33 @@
+# Node
+node_modules/
+dist/
+.angular/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+
+# Data (Crucial for privacy and not bloating the repo)
+data/
+!data/.gitkeep
+
+# Environments
+.env
+.env.*
+!.env.example
+
+# IDEs and OS
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
