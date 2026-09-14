@@ -29,10 +29,10 @@ jobs:
       run: npm run build -- --configuration production
 
     - name: Setup Java
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         distribution: 'zulu'
-        java-version: '17'
+        java-version: '21'
 
     - name: Add Android Platform
       working-directory: ./frontend
