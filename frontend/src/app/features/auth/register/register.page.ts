@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-register',
@@ -6,11 +7,16 @@ import { Component, OnInit } from '@angular/core';
   styleUrls: ['./register.page.scss'],
   standalone: false,
 })
-export class RegisterPage implements OnInit {
+export class RegisterPage {
+  name = '';
+  email = '';
+  password = '';
 
-  constructor() { }
+  constructor(private router: Router) { }
 
-  ngOnInit() {
+  onRegister() {
+    console.log('Register attempt', this.name, this.email);
+    // TODO: integracion con backend /api/v1/auth/register
+    this.router.navigate(['/onboarding']);
   }
-
 }

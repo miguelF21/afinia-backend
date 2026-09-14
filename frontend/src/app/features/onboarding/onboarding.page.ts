@@ -44,6 +44,6 @@ export class OnboardingPage implements OnInit {
     // TODO: POST /api/v1/profile y POST /api/v1/analytics/answers
     console.log('Perfil guardado:', this.profile);
     console.log('Analítica guardada:', this.analytics);
-    this.router.navigate(['/features/dashboard']);
+    this.router.navigate(['/dashboard']);
   }
 }

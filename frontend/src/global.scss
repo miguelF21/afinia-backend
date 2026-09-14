@@ -1,23 +1,8 @@
-/*
- * App Global CSS
- * ----------------------------------------------------------------------------
- * Put style rules here that you want to apply globally. These styles are for
- * the entire app and not just one component. Additionally, this file can be
- * used as an entry point to import other CSS/Sass files to be included in the
- * output CSS.
- * For more information on global stylesheets, visit the documentation:
- * https://ionicframework.com/docs/layout/global-stylesheets
- */
-
-/* Core CSS required for Ionic components to work properly */
+/* Core CSS */
 @import "@ionic/angular/css/core.css";
-
-/* Basic CSS for apps built with Ionic */
 @import "@ionic/angular/css/normalize.css";
 @import "@ionic/angular/css/structure.css";
 @import "@ionic/angular/css/typography.css";
-
-/* Optional CSS utils that can be commented out */
 @import "@ionic/angular/css/padding.css";
 @import "@ionic/angular/css/float-elements.css";
 @import "@ionic/angular/css/text-alignment.css";
@@ -25,45 +10,43 @@
 @import "@ionic/angular/css/flex-utils.css";
 @import "@ionic/angular/css/display.css";
 
-/**
- * Ionic Dark Mode
- * -----------------------------------------------------
- * For more info, please see:
- * https://ionicframework.com/docs/theming/dark-mode
- */
-
-/* @import "@ionic/angular/css/palettes/dark.always.css"; */
-/* @import "@ionic/angular/css/palettes/dark.class.css"; */
-/* @import "@ionic/angular/css/palettes/dark.system.css"; */
+/* No dark mode import to ensure pastel palette shines */
 
 :root {
-  --ion-color-primary: #8a2be2;
-  --ion-color-primary-rgb: 138, 43, 226;
+  /* Pastel Blue */
+  --ion-color-primary: #89C2D9;
+  --ion-color-primary-rgb: 137, 194, 217;
   --ion-color-primary-contrast: #ffffff;
   --ion-color-primary-contrast-rgb: 255, 255, 255;
-  --ion-color-primary-shade: #7a26c7;
-  --ion-color-primary-tint: #9640e5;
+  --ion-color-primary-shade: #79abc1;
+  --ion-color-primary-tint: #95c8dd;
 
-  --ion-color-secondary: #00ced1;
-  --ion-color-secondary-rgb: 0, 206, 209;
-  --ion-color-secondary-contrast: #ffffff;
-  --ion-color-secondary-contrast-rgb: 255, 255, 255;
-  --ion-color-secondary-shade: #00b5b8;
-  --ion-color-secondary-tint: #1ad3d4;
+  /* Soft Peach to match */
+  --ion-color-secondary: #FFD6BA;
+  --ion-color-secondary-rgb: 255, 214, 186;
+  --ion-color-secondary-contrast: #000000;
+  --ion-color-secondary-contrast-rgb: 0, 0, 0;
+  --ion-color-secondary-shade: #e0bc9c;
+  --ion-color-secondary-tint: #ffdac3;
+  
+  /* App background */
+  --ion-background-color: #F8F9FA;
 
   --ion-font-family: 'Poppins', sans-serif;
 }
 
 body {
   font-family: var(--ion-font-family);
+  background: var(--ion-background-color);
 }
 
 .custom-input {
-  --background: #f4f5f8;
-  --border-radius: 8px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  --background: #ffffff;
+  --border-radius: 12px;
+  border: 1px solid #e0e6ed;
+  border-radius: 12px;
   margin-bottom: 15px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.02);
 }
 
 .primary-btn {
@@ -71,6 +54,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.5px;
   height: 50px;
+  --box-shadow: 0 4px 10px rgba(137, 194, 217, 0.4);
 }
 
 .link-text {
@@ -79,24 +63,15 @@ body {
   font-size: 0.9rem;
   font-weight: 500;
 }
-@import "@ionic/angular/css/structure.css";
-@import "@ionic/angular/css/typography.css";
-@import "@ionic/angular/css/display.css";
 
-/* Optional CSS utils that can be commented out */
-@import "@ionic/angular/css/padding.css";
-@import "@ionic/angular/css/float-elements.css";
-@import "@ionic/angular/css/text-alignment.css";
-@import "@ionic/angular/css/text-transformation.css";
-@import "@ionic/angular/css/flex-utils.css";
-
-/**
- * Ionic Dark Mode
- * -----------------------------------------------------
- * For more info, please see:
- * https://ionicframework.com/docs/theming/dark-mode
- */
-
-/* @import "@ionic/angular/css/palettes/dark.always.css"; */
-/* @import "@ionic/angular/css/palettes/dark.class.css"; */
-@import "@ionic/angular/css/palettes/dark.system.css";
+/* Force Auth Page background to be nice */
+.auth-page {
+  --background: #F8F9FA;
+}
+.auth-card {
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+  margin-top: 20px;
+}

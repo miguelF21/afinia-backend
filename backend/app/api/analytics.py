@@ -40,3 +40,23 @@ def predict(current_user):
         }), 200
     except Exception as e:
         return jsonify({'message': f'Error en predicción: {str(e)}'}), 500
+
+@bp.route('/answers', methods=['POST'])
+@token_required
+def save_answers(current_user):
+    from app.models.analytics import AnalyticQuestionnaireAnswer
+    from app import db
+    
+    data = request.get_json()
+    if not data or not isinstance(data, dict):
+        return jsonify({'message': 'Se requiere un JSON con las respuestas'}), 400
+        
+    for key, value in data.items():
+        if isinstance(value, int) or str(value).isnumeric():
+            answer = AnalyticQuestionnaireAnswer(user_id=current_user.id, variable_name=key, value_numeric=int(value))
+        else:
+            answer = AnalyticQuestionnaireAnswer(user_id=current_user.id, variable_name=key, value_text=str(value))
+        db.session.add(answer)
+        
+    db.session.commit()
+    return jsonify({'message': 'Respuestas guardadas exitosamente'}), 201

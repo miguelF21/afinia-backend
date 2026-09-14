@@ -19,6 +19,7 @@ services:
     container_name: afinia_backend
     environment:
       DATABASE_URL: postgresql://afinia_user:afinia_password@db:5432/afinia_db
+      SECRET_KEY: f3b9f8e7c2a1d0b9a8f7c6e5d4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5
     ports:
       - "5000:5000"
     depends_on:

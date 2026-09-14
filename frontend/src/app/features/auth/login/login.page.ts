@@ -19,6 +19,6 @@ export class LoginPage implements OnInit {
     // TODO: Integrar con backend endpoint /api/v1/auth/login
     console.log('Login attempt', this.email);
     // Simular éxito y redirigir
-    this.router.navigate(['/features/dashboard']);
+    this.router.navigate(['/dashboard']);
   }
 }

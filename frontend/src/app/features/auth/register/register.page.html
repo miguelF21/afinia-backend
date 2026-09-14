@@ -1,13 +1,37 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-title>register</ion-title>
-  </ion-toolbar>
-</ion-header>
+<ion-content class="auth-page">
+  <div class="auth-container">
+    <div class="logo-section">
+      <h1 class="logo-text">Afinia</h1>
+    </div>
 
-<ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">register</ion-title>
-    </ion-toolbar>
-  </ion-header>
+    <div class="auth-card">
+      <h2 class="ion-text-center">Crear cuenta</h2>
+      <p class="ion-text-center text-muted">Únete para encontrar a tu pareja ideal.</p>
+
+      <form (ngSubmit)="onRegister()">
+        <ion-item class="custom-input" lines="none">
+          <ion-icon name="person-outline" slot="start" color="medium"></ion-icon>
+          <ion-input type="text" placeholder="Nombre completo" [(ngModel)]="name" name="name" required></ion-input>
+        </ion-item>
+
+        <ion-item class="custom-input" lines="none">
+          <ion-icon name="mail-outline" slot="start" color="medium"></ion-icon>
+          <ion-input type="email" placeholder="Correo electrónico" [(ngModel)]="email" name="email" required></ion-input>
+        </ion-item>
+
+        <ion-item class="custom-input" lines="none">
+          <ion-icon name="lock-closed-outline" slot="start" color="medium"></ion-icon>
+          <ion-input type="password" placeholder="Contraseña" [(ngModel)]="password" name="password" required></ion-input>
+        </ion-item>
+
+        <ion-button expand="block" shape="round" color="primary" class="ion-margin-top" type="submit">
+          REGISTRARSE
+        </ion-button>
+      </form>
+
+      <div class="ion-text-center ion-margin-top">
+        <a routerLink="/login" class="link-text">¿Ya tienes cuenta? Ingresa</a>
+      </div>
+    </div>
+  </div>
 </ion-content>

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Afinia</string>
+    <string name="title_activity_main">Afinia</string>
+    <string name="package_name">com.ucc.afinia</string>
+    <string name="custom_url_scheme">com.ucc.afinia</string>
+</resources>

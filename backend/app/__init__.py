@@ -23,6 +23,9 @@ def create_app(config_class=Config):
     from app.api.analytics import bp as analytics_bp
     app.register_blueprint(analytics_bp, url_prefix='/api/v1/analytics')
 
+    from app.api.match import bp as match_bp
+    app.register_blueprint(match_bp, url_prefix='/api/v1/match')
+
     @app.route('/health', methods=['GET'])
     def health_check():
         return {'status': 'ok', 'project': 'Afinia API'}
