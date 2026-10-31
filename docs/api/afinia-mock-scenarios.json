@@ -1,0 +1,240 @@
+{
+  "_description": "Todos los datos son FICTICIOS; mocks estáticos, NO preservan sesiones ni likes.",
+  "auth_login": {
+    "data": {
+      "access_token": "mock-access-token-do-not-use-in-production",
+      "token_type": "Bearer",
+      "expires_in": 900,
+      "user": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "email": "ana@example.test",
+        "onboarding_complete": false,
+        "email_verified": false,
+        "status": "pending_profile"
+      }
+    }
+  },
+  "profile_own": {
+    "data": {
+      "user_id": "11111111-1111-4111-8111-111111111111",
+      "first_name": "Ana",
+      "birth_date": "2002-04-10",
+      "age": 24,
+      "gender": "femenino",
+      "city": "Villavicencio",
+      "bio": "Me gusta la música.",
+      "photos": [],
+      "onboarding_complete": true
+    }
+  },
+  "preferences": {
+    "data": {
+      "interested_in_genders": [
+        "masculino",
+        "no_binario"
+      ],
+      "min_age": 21,
+      "max_age": 35,
+      "target_relationship_type": "seria"
+    }
+  },
+  "discovery_results": {
+    "data": {
+      "items": [
+        {
+          "user_id": "22222222-2222-4222-8222-222222222222",
+          "first_name": "Luis",
+          "age": 24,
+          "gender": "masculino",
+          "city": "Villavicencio",
+          "bio": "Me gusta caminar y conocer lugares nuevos.",
+          "photos": [
+            {
+              "id": "66666666-6666-4666-8666-666666666666",
+              "url": "https://media.example.test/demo/photo-1.webp",
+              "is_primary": true
+            }
+          ],
+          "relationship_goal": "seria"
+        },
+        {
+          "user_id": "33333333-3333-4333-8333-333333333333",
+          "first_name": "Camila",
+          "age": 25,
+          "gender": "femenino",
+          "city": "Bogotá",
+          "bio": "Café, libros y planes al aire libre.",
+          "photos": [],
+          "relationship_goal": "seria"
+        }
+      ]
+    },
+    "meta": {
+      "next_cursor": null,
+      "has_more": false
+    }
+  },
+  "discovery_empty": {
+    "data": {
+      "items": []
+    },
+    "meta": {
+      "next_cursor": null,
+      "has_more": false
+    }
+  },
+  "swipe_like_mutual": {
+    "data": {
+      "interaction_id": "77777777-7777-4777-8777-777777777777",
+      "action": "LIKE",
+      "is_match": true,
+      "match_id": "44444444-4444-4444-8444-444444444444"
+    }
+  },
+  "swipe_like_no_match": {
+    "data": {
+      "interaction_id": "77777777-7777-4777-8777-777777777777",
+      "action": "LIKE",
+      "is_match": false,
+      "match_id": null
+    }
+  },
+  "matches": {
+    "data": {
+      "items": [
+        {
+          "id": "44444444-4444-4444-8444-444444444444",
+          "other_user": {
+            "user_id": "22222222-2222-4222-8222-222222222222",
+            "first_name": "Luis",
+            "age": 24,
+            "gender": "masculino",
+            "city": "Villavicencio",
+            "bio": "Me gusta caminar y conocer lugares nuevos.",
+            "photos": [
+              {
+                "id": "66666666-6666-4666-8666-666666666666",
+                "url": "https://media.example.test/demo/photo-1.webp",
+                "is_primary": true
+              }
+            ],
+            "relationship_goal": "seria"
+          },
+          "created_at": "2026-10-27T16:20:00Z",
+          "last_message": {
+            "id": "55555555-5555-4555-8555-555555555555",
+            "match_id": "44444444-4444-4444-8444-444444444444",
+            "sender_user_id": "11111111-1111-4111-8111-111111111111",
+            "text": "¡Hola! ¿Cómo estás?",
+            "sent_at": "2026-10-27T16:20:00Z",
+            "read_at": null
+          },
+          "unread_count": 0
+        }
+      ]
+    },
+    "meta": {
+      "next_cursor": null,
+      "has_more": false
+    }
+  },
+  "matches_empty": {
+    "data": {
+      "items": []
+    },
+    "meta": {
+      "next_cursor": null,
+      "has_more": false
+    }
+  },
+  "messages": {
+    "data": {
+      "items": [
+        {
+          "id": "55555555-5555-4555-8555-555555555555",
+          "match_id": "44444444-4444-4444-8444-444444444444",
+          "sender_user_id": "11111111-1111-4111-8111-111111111111",
+          "text": "¡Hola! ¿Cómo estás?",
+          "sent_at": "2026-10-27T16:20:00Z",
+          "read_at": null
+        }
+      ]
+    },
+    "meta": {
+      "next_cursor": null,
+      "has_more": false
+    }
+  },
+  "messages_empty": {
+    "data": {
+      "items": []
+    },
+    "meta": {
+      "next_cursor": null,
+      "has_more": false
+    }
+  },
+  "questionnaire": {
+    "data": {
+      "version": "draft-1",
+      "questions": [
+        {
+          "id": "importance_communication",
+          "label": "¿Qué tan importante es para ti la comunicación?",
+          "type": "scale_1_5",
+          "required": true,
+          "min": 1,
+          "max": 5
+        },
+        {
+          "id": "importance_values",
+          "label": "¿Qué tan importantes son los valores compartidos?",
+          "type": "scale_1_5",
+          "required": true,
+          "min": 1,
+          "max": 5
+        }
+      ]
+    }
+  },
+  "error_unauthorized": {
+    "error": {
+      "code": "UNAUTHORIZED",
+      "message": "Debes iniciar sesión."
+    }
+  },
+  "error_validation": {
+    "error": {
+      "code": "VALIDATION_ERROR",
+      "message": "Revisa los datos enviados.",
+      "details": {
+        "field": "Valor inválido"
+      },
+      "request_id": "req_mock_001"
+    }
+  },
+  "error_conflict": {
+    "error": {
+      "code": "ALREADY_EXISTS",
+      "message": "Ya existe un registro con esos datos."
+    }
+  },
+  "error_rate_limit": {
+    "error": {
+      "code": "RATE_LIMITED",
+      "message": "Demasiadas solicitudes. Intenta más tarde."
+    }
+  },
+  "error_forbidden": {
+    "error": {
+      "code": "FORBIDDEN",
+      "message": "No tienes permiso para realizar esta acción."
+    }
+  },
+  "error_not_found": {
+    "error": {
+      "code": "NOT_FOUND",
+      "message": "No se encontró el recurso."
+    }
+  }
+}

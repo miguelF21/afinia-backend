@@ -1,0 +1,31 @@
+AFINIA — REGLAS DEL ÁRBOL DE DECISIÓN (DecisionTreeClassifier, depth=3)
+========================================================================
+
+|--- importancia_compartir_hobbies <= 0.98
+|   |--- edad <= -0.23
+|   |   |--- nivel_independencia <= 0.29
+|   |   |   |--- class: 1
+|   |   |--- nivel_independencia >  0.29
+|   |   |   |--- class: 0
+|   |--- edad >  -0.23
+|   |   |--- importancia_familia <= -0.96
+|   |   |   |--- class: 0
+|   |   |--- importancia_familia >  -0.96
+|   |   |   |--- class: 1
+|--- importancia_compartir_hobbies >  0.98
+|   |--- edad <= 0.14
+|   |   |--- comunicacion_conflictos <= 0.97
+|   |   |   |--- class: 1
+|   |   |--- comunicacion_conflictos >  0.97
+|   |   |   |--- class: 0
+|   |--- edad >  0.14
+|   |   |--- class: 0
+
+
+IMPORTANCIA DE VARIABLES (Gini Impurity Reduction):
+---------------------------------------------------
+- edad: 0.3028
+- importancia_familia: 0.2093
+- importancia_compartir_hobbies: 0.2063
+- comunicacion_conflictos: 0.1514
+- nivel_independencia: 0.1302

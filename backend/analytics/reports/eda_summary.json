@@ -1,0 +1,156 @@
+{
+  "total_records": 103,
+  "total_columns": 21,
+  "duplicate_rows": 0,
+  "missing_values": {
+    "edad": 0,
+    "genero": 0,
+    "ubicacion": 0,
+    "ocupacion": 0,
+    "importancia_altura": 0,
+    "importancia_complexion": 0,
+    "importancia_estilo": 0,
+    "importancia_sentido_del_humor": 0,
+    "importancia_ambicion": 0,
+    "importancia_empatia": 0,
+    "introvertido_vs_extrovertido": 0,
+    "frecuencia_ejercicio": 0,
+    "importancia_compartir_hobbies": 0,
+    "preferencia_mascotas": 0,
+    "habito_fumar": 0,
+    "expresion_afecto": 0,
+    "comunicacion_conflictos": 0,
+    "nivel_independencia": 0,
+    "impacto_relaciones_pasadas": 0,
+    "importancia_familia": 0,
+    "tipo_relacion_buscada": 0
+  },
+  "target_distribution_raw": {
+    "Una relación seria y estable": 43,
+    "Amistad primero y ver qué pasa": 35,
+    "Algo casual": 20,
+    "Prefiero no responder": 5
+  },
+  "categorical_distributions": {
+    "genero": {
+      "Masculino": 51,
+      "Femenino": 47,
+      "Prefiero no decirlo": 5
+    },
+    "ubicacion": {
+      "Oriente": 27,
+      "Occidente": 26,
+      "Norte": 26,
+      "Centro": 13,
+      "Sur": 11
+    },
+    "ocupacion": {
+      "Trabajador tiempo completo": 32,
+      "Trabajador medio tiempo": 26,
+      "Independiente": 23,
+      "Estudiante": 22
+    },
+    "frecuencia_ejercicio": {
+      "3-5 veces/semana": 32,
+      "Diario": 26,
+      "1-2 veces/semana": 24,
+      "Nunca": 21
+    },
+    "preferencia_mascotas": {
+      "Tengo/Me gustan mucho": 39,
+      "No me gustan": 33,
+      "Me es indiferente": 31
+    },
+    "habito_fumar": {
+      "Sí": 40,
+      "No": 34,
+      "Ocasionalmente": 29
+    }
+  },
+  "numerical_statistics": {
+    "edad": {
+      "min": 18.0,
+      "max": 49.0,
+      "mean": 34.54,
+      "std": 9.33
+    },
+    "importancia_altura": {
+      "min": 1.0,
+      "max": 5.0,
+      "mean": 3.24,
+      "std": 1.44
+    },
+    "importancia_complexion": {
+      "min": 1.0,
+      "max": 5.0,
+      "mean": 2.99,
+      "std": 1.51
+    },
+    "importancia_estilo": {
+      "min": 1.0,
+      "max": 5.0,
+      "mean": 3.17,
+      "std": 1.46
+    },
+    "importancia_sentido_del_humor": {
+      "min": 1.0,
+      "max": 5.0,
+      "mean": 2.99,
+      "std": 1.45
+    },
+    "importancia_ambicion": {
+      "min": 1.0,
+      "max": 5.0,
+      "mean": 2.87,
+      "std": 1.41
+    },
+    "importancia_empatia": {
+      "min": 1.0,
+      "max": 5.0,
+      "mean": 3.04,
+      "std": 1.5
+    },
+    "introvertido_vs_extrovertido": {
+      "min": 1.0,
+      "max": 5.0,
+      "mean": 2.92,
+      "std": 1.42
+    },
+    "importancia_compartir_hobbies": {
+      "min": 1.0,
+      "max": 5.0,
+      "mean": 2.92,
+      "std": 1.42
+    },
+    "expresion_afecto": {
+      "min": 1.0,
+      "max": 5.0,
+      "mean": 3.11,
+      "std": 1.42
+    },
+    "comunicacion_conflictos": {
+      "min": 1.0,
+      "max": 5.0,
+      "mean": 3.08,
+      "std": 1.41
+    },
+    "nivel_independencia": {
+      "min": 1.0,
+      "max": 5.0,
+      "mean": 2.92,
+      "std": 1.36
+    },
+    "impacto_relaciones_pasadas": {
+      "min": 1.0,
+      "max": 5.0,
+      "mean": 3.07,
+      "std": 1.45
+    },
+    "importancia_familia": {
+      "min": 1.0,
+      "max": 5.0,
+      "mean": 2.89,
+      "std": 1.48
+    }
+  }
+}

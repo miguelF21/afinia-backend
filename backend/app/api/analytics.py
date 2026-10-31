@@ -52,9 +52,10 @@ def save_answers(current_user):
         return jsonify({'message': 'Se requiere un JSON con las respuestas'}), 400
         
     for key, value in data.items():
-        if isinstance(value, int) or str(value).isnumeric():
-            answer = AnalyticQuestionnaireAnswer(user_id=current_user.id, variable_name=key, value_numeric=int(value))
-        else:
+        try:
+            val_num = float(value)
+            answer = AnalyticQuestionnaireAnswer(user_id=current_user.id, variable_name=key, value_numeric=val_num)
+        except (ValueError, TypeError):
             answer = AnalyticQuestionnaireAnswer(user_id=current_user.id, variable_name=key, value_text=str(value))
         db.session.add(answer)
         

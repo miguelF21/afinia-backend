@@ -15,6 +15,7 @@ env/
 # Data (Crucial for privacy and not bloating the repo)
 data/
 !data/.gitkeep
+uploads/
 
 # Environments
 .env
@@ -31,3 +32,7 @@ data/
 *.sw?
 .DS_Store
 Thumbs.db
+
+# Scratch and audit archives
+scratch/
+*.zip

@@ -1,0 +1,143 @@
+{
+  "metadata": {
+    "model_file": "decision_tree_v1.joblib",
+    "model_type": "DecisionTreeClassifier",
+    "scikit_learn_version": "1.7.2",
+    "dataset_path": "C:\\Users\\migue\\Documents\\SEMESTRE 10\\ANALISIS DE DATOS\\afinia\\data\\raw\\dataset_encuesta.csv",
+    "dataset_sha256": "e5fa302560f2ea764f8189770229bd07ef0ad304f9823394cd32ed1d1d32d63a",
+    "creation_timestamp_utc": "2026-10-29T17:53:57.709605+00:00",
+    "total_records_raw": 103,
+    "total_records_filtered": 98,
+    "train_samples": 78,
+    "test_samples": 20,
+    "hyperparameters": {
+      "max_depth": 3,
+      "min_samples_split": 2,
+      "min_samples_leaf": 4,
+      "class_weight": "balanced",
+      "random_state": 42
+    },
+    "tree_characteristics": {
+      "actual_depth": 3,
+      "number_of_leaves": 7,
+      "features_with_positive_importance": 5
+    }
+  },
+  "tree_metrics": {
+    "cv_5fold_train": {
+      "accuracy_mean": 0.4483,
+      "accuracy_std": 0.1747,
+      "balanced_accuracy_mean": 0.445,
+      "balanced_accuracy_std": 0.1715,
+      "f1_macro_mean": 0.4429,
+      "f1_macro_std": 0.1741
+    },
+    "train_set": {
+      "n_samples": 78,
+      "class_distribution": {
+        "0": 44,
+        "1": 34
+      },
+      "accuracy": 0.7821,
+      "balanced_accuracy": 0.7968,
+      "f1_macro": 0.782
+    },
+    "test_set": {
+      "n_samples": 20,
+      "class_distribution_real": {
+        "0": 11,
+        "1": 9
+      },
+      "class_distribution_pred": {
+        "1": 15,
+        "0": 5
+      },
+      "accuracy": 0.5,
+      "balanced_accuracy": 0.5253,
+      "precision_class_0": 0.6,
+      "recall_class_0": 0.2727,
+      "precision_class_1": 0.4667,
+      "recall_class_1": 0.7778,
+      "f1_macro": 0.4792,
+      "confusion_matrix": [
+        [
+          3,
+          8
+        ],
+        [
+          2,
+          7
+        ]
+      ]
+    }
+  },
+  "dummy_baseline_metrics": {
+    "cv_5fold_train": {
+      "accuracy_mean": 0.5642,
+      "accuracy_std": 0.0212,
+      "balanced_accuracy_mean": 0.5,
+      "balanced_accuracy_std": 0.0,
+      "f1_macro_mean": 0.3606,
+      "f1_macro_std": 0.0086
+    },
+    "train_set": {
+      "n_samples": 78,
+      "class_distribution": {
+        "0": 44,
+        "1": 34
+      },
+      "accuracy": 0.5641,
+      "balanced_accuracy": 0.5,
+      "f1_macro": 0.3607
+    },
+    "test_set": {
+      "n_samples": 20,
+      "class_distribution_real": {
+        "0": 11,
+        "1": 9
+      },
+      "class_distribution_pred": {
+        "0": 20
+      },
+      "accuracy": 0.55,
+      "balanced_accuracy": 0.5,
+      "precision_class_0": 0.55,
+      "recall_class_0": 1.0,
+      "precision_class_1": 0.0,
+      "recall_class_1": 0.0,
+      "f1_macro": 0.3548,
+      "confusion_matrix": [
+        [
+          11,
+          0
+        ],
+        [
+          9,
+          0
+        ]
+      ]
+    }
+  },
+  "feature_importances": [
+    {
+      "feature": "edad",
+      "importance": 0.3028
+    },
+    {
+      "feature": "importancia_familia",
+      "importance": 0.2093
+    },
+    {
+      "feature": "importancia_compartir_hobbies",
+      "importance": 0.2063
+    },
+    {
+      "feature": "comunicacion_conflictos",
+      "importance": 0.1514
+    },
+    {
+      "feature": "nivel_independencia",
+      "importance": 0.1302
+    }
+  ]
+}

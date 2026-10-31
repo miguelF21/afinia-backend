@@ -1,0 +1,24 @@
+{
+  "model_file": "decision_tree_v1.joblib",
+  "model_type": "DecisionTreeClassifier",
+  "scikit_learn_version": "1.7.2",
+  "dataset_path": "C:\\Users\\migue\\Documents\\SEMESTRE 10\\ANALISIS DE DATOS\\afinia\\data\\raw\\dataset_encuesta.csv",
+  "dataset_sha256": "e5fa302560f2ea764f8189770229bd07ef0ad304f9823394cd32ed1d1d32d63a",
+  "creation_timestamp_utc": "2026-10-29T17:53:57.709605+00:00",
+  "total_records_raw": 103,
+  "total_records_filtered": 98,
+  "train_samples": 78,
+  "test_samples": 20,
+  "hyperparameters": {
+    "max_depth": 3,
+    "min_samples_split": 2,
+    "min_samples_leaf": 4,
+    "class_weight": "balanced",
+    "random_state": 42
+  },
+  "tree_characteristics": {
+    "actual_depth": 3,
+    "number_of_leaves": 7,
+    "features_with_positive_importance": 5
+  }
+}

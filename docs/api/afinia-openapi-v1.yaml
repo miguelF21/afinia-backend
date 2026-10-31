@@ -1,0 +1,3665 @@
+openapi: 3.0.3
+info:
+  title: Afinia — Contrato de integración web y móvil
+  version: 1.0.0-draft
+  description: 'CONTRATO OBJETIVO PARA MOCKS (no describe funcionalidades ya desplegadas). Los ejemplos son sintéticos.
+    Status x-implementation distingue código reportado de endpoints nuevos. Los esquemas pueden exigir migraciones
+    posteriores a DB-02.
+
+    Nota: el mock HTTP es ESTÁTICO y no persiste cambios de estado. Las cookies/refresh y la seguridad real requieren
+    backend.'
+servers:
+- url: http://127.0.0.1:5000
+  description: Flask local, cuando esté implementado
+- url: http://127.0.0.1:4010
+  description: Prism mock local
+tags:
+- name: Sistema
+  description: Verificación de salud
+- name: Autenticación
+  description: Registro, sesiones y tokens
+- name: Perfiles
+  description: Datos de usuarios
+- name: Descubrimiento
+  description: Preferencias y candidatos
+- name: Matches
+  description: Interacciones y coincidencias
+- name: Mensajería
+  description: Conversaciones asociadas a matches
+- name: Cuestionario
+  description: Preguntas de preferencias no técnicas
+- name: Seguridad
+  description: Bloqueo, reportes y eliminación
+- name: Legal
+  description: Consentimiento
+- name: Notificaciones
+  description: Fase posterior
+- name: Moderación
+  description: Administración interna, no API de la app pública
+paths:
+  /health:
+    get:
+      tags:
+      - Sistema
+      summary: Comprobar que el proceso HTTP responde
+      operationId: getHealth
+      x-implementation: existente_no_verificado
+      x-phase: infraestructura
+      description: Contrato objetivo; no implica implementación actual.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum:
+                    - ok
+                required:
+                - status
+              example:
+                status: ok
+      security: []
+  /api/v1/auth/register:
+    post:
+      tags:
+      - Autenticación
+      summary: Registrar cuenta pendiente de onboarding
+      operationId: register
+      x-implementation: existente_requiere_alineacion
+      x-phase: MVP
+      description: El usuario no accede a discovery ni matches hasta finalizar el perfil y validar edad 18+ en servidor.
+        La aceptación de términos debe registrar versiones y marca de tiempo en backend.
+      responses:
+        '201':
+          description: Operación aceptada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserBrief'
+                required:
+                - data
+              example:
+                data: &id001
+                  id: 11111111-1111-4111-8111-111111111111
+                  email: ana@example.test
+                  onboarding_complete: false
+                  email_verified: false
+                  status: pending_profile
+        '400':
+          description: Petición inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: BAD_REQUEST
+                  message: Petición inválida
+                  request_id: req_mock_001
+        '409':
+          description: Conflicto de estado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: CONFLICT
+                  message: Conflicto de estado
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+        '429':
+          description: Límite de peticiones alcanzado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: Límite de peticiones alcanzado
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterInput'
+            example:
+              email: ana@example.test
+              password: ClaveDemoSegura2026!
+              accept_terms_version: v1-draft
+              accept_privacy_version: v1-draft
+      security: []
+  /api/v1/auth/login:
+    post:
+      tags:
+      - Autenticación
+      summary: Iniciar sesión
+      operationId: login
+      x-implementation: existente_requiere_alineacion
+      x-phase: MVP
+      description: La política objetivo utiliza access token corto y renovación protegida; implementación actual
+        descrita en auditoría usa JWT 24h. El refresh_token opcional solo se devuelve en móvil; en web la renovación
+        se maneja en cookie HttpOnly.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AuthSession'
+                required:
+                - data
+              example:
+                data: &id002
+                  access_token: mock-access-token-do-not-use-in-production
+                  token_type: Bearer
+                  expires_in: 900
+                  user: *id001
+        '400':
+          description: Petición inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: BAD_REQUEST
+                  message: Petición inválida
+                  request_id: req_mock_001
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '429':
+          description: Límite de peticiones alcanzado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: Límite de peticiones alcanzado
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+            example:
+              email: ana@example.test
+              password: ClaveDemoSegura2026!
+      security: []
+  /api/v1/auth/refresh:
+    post:
+      tags:
+      - Autenticación
+      summary: Renovar sesión
+      operationId: refreshSession
+      x-implementation: nuevo
+      x-phase: MVP
+      description: 'Web: refresh en cookie HttpOnly, Secure y SameSite, con protección CSRF según la arquitectura
+        final. Móvil: refresh_token en cuerpo, guardado seguro del dispositivo. Tokens rotativos sujetos a diseño
+        de sesiones.'
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AuthSession'
+                required:
+                - data
+              example:
+                data: *id002
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '429':
+          description: Límite de peticiones alcanzado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: Límite de peticiones alcanzado
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshInput'
+            example: {}
+      security: []
+  /api/v1/auth/logout:
+    post:
+      tags:
+      - Autenticación
+      summary: Cerrar sesión y revocar refresh
+      operationId: logout
+      x-implementation: nuevo
+      x-phase: MVP
+      description: Contrato objetivo; no implica implementación actual.
+      responses:
+        '204':
+          description: Sin contenido
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+  /api/v1/profile/:
+    get:
+      tags:
+      - Perfiles
+      summary: Obtener mi perfil
+      operationId: getMyProfile
+      x-implementation: existente_requiere_alineacion
+      x-phase: MVP
+      description: Contrato objetivo; no implica implementación actual.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OwnProfile'
+                required:
+                - data
+              example:
+                data: &id003
+                  user_id: 11111111-1111-4111-8111-111111111111
+                  first_name: Ana
+                  birth_date: '2002-04-10'
+                  age: 24
+                  gender: femenino
+                  city: Villavicencio
+                  bio: Me gusta la música.
+                  photos: []
+                  onboarding_complete: true
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+    post:
+      tags:
+      - Perfiles
+      summary: Crear perfil durante onboarding
+      operationId: createMyProfile
+      x-implementation: existente_requiere_alineacion
+      x-phase: MVP
+      description: El backend debe validar que el usuario sea adulto a partir de birth_date antes de activar su
+        perfil. No basta validación Angular.
+      responses:
+        '201':
+          description: Operación aceptada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OwnProfile'
+                required:
+                - data
+              example:
+                data: *id003
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '409':
+          description: Conflicto de estado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: CONFLICT
+                  message: Conflicto de estado
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileWrite'
+            example:
+              first_name: Ana
+              birth_date: '2002-04-10'
+              gender: femenino
+              city: Villavicencio
+              bio: Me gusta la música.
+    put:
+      tags:
+      - Perfiles
+      summary: Actualizar mi perfil
+      operationId: replaceMyProfile
+      x-implementation: existente_requiere_alineacion
+      x-phase: MVP
+      description: Contrato objetivo; no implica implementación actual.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OwnProfile'
+                required:
+                - data
+              example:
+                data: *id003
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileWrite'
+            example:
+              first_name: Ana
+              birth_date: '2002-04-10'
+              gender: femenino
+              city: Villavicencio
+              bio: Me gusta la música.
+  /api/v1/users/{userId}:
+    get:
+      tags:
+      - Perfiles
+      summary: Obtener perfil público visible
+      operationId: getPublicProfile
+      x-implementation: nuevo
+      x-phase: MVP
+      description: NUNCA retornar email, fecha de nacimiento, respuestas del cuestionario, tokens ni datos ocultos.
+        Bloqueos y visibilidad aplicados en servidor.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PublicProfile'
+                required:
+                - data
+              example:
+                data: &id006
+                  user_id: 22222222-2222-4222-8222-222222222222
+                  first_name: Luis
+                  age: 24
+                  gender: masculino
+                  city: Villavicencio
+                  bio: Me gusta caminar y conocer lugares nuevos.
+                  photos:
+                  - &id004
+                    id: 66666666-6666-4666-8666-666666666666
+                    url: https://media.example.test/demo/photo-1.webp
+                    is_primary: true
+                  relationship_goal: seria
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '404':
+          description: No encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: NOT_FOUND
+                  message: No encontrado
+                  request_id: req_mock_001
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Identificador UUID de la entidad
+  /api/v1/profile/photos:
+    post:
+      tags:
+      - Perfiles
+      summary: Subir fotografía de perfil
+      operationId: uploadPhoto
+      x-implementation: nuevo
+      x-phase: MVP
+      description: Imágenes JPEG/PNG/WEBP hasta 10 MB, máximo seis por perfil; validar MIME, contenido real, autorización
+        y moderación. URL ilustrativa, aún no existe storage contratado.
+      responses:
+        '201':
+          description: Operación aceptada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Photo'
+                required:
+                - data
+              example:
+                data: *id004
+        '400':
+          description: Petición inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: BAD_REQUEST
+                  message: Petición inválida
+                  request_id: req_mock_001
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '413':
+          description: Archivo demasiado grande
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: PAYLOAD_TOO_LARGE
+                  message: Archivo demasiado grande
+                  request_id: req_mock_001
+        '415':
+          description: Tipo de archivo no admitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNSUPPORTED_MEDIA_TYPE
+                  message: Tipo de archivo no admitido
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                is_primary:
+                  type: boolean
+                  default: false
+              required:
+              - file
+  /api/v1/profile/photos/{photoId}:
+    delete:
+      tags:
+      - Perfiles
+      summary: Eliminar una foto propia
+      operationId: deletePhoto
+      x-implementation: nuevo
+      x-phase: MVP
+      description: Contrato objetivo; no implica implementación actual.
+      responses:
+        '204':
+          description: Sin contenido
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '404':
+          description: No encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: NOT_FOUND
+                  message: No encontrado
+                  request_id: req_mock_001
+      parameters:
+      - name: photoId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Identificador UUID de la entidad
+  /api/v1/profile/discovery-preferences:
+    get:
+      tags:
+      - Descubrimiento
+      summary: Consultar preferencias de búsqueda
+      operationId: getPreferences
+      x-implementation: nuevo
+      x-phase: MVP
+      description: El modelo ORM actual usa interesado_en_genero escalar; este contrato define lista inclusiva,
+        requiere migración y adaptación de filtros.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Preferences'
+                required:
+                - data
+              example:
+                data: &id005
+                  interested_in_genders:
+                  - masculino
+                  - no_binario
+                  min_age: 21
+                  max_age: 35
+                  target_relationship_type: seria
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+    put:
+      tags:
+      - Descubrimiento
+      summary: Guardar preferencias de búsqueda
+      operationId: putPreferences
+      x-implementation: nuevo
+      x-phase: MVP
+      description: Contrato objetivo; no implica implementación actual.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Preferences'
+                required:
+                - data
+              example:
+                data: *id005
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Preferences'
+            example: *id005
+  /api/v1/match/potential:
+    get:
+      tags:
+      - Descubrimiento
+      summary: Obtener candidatos filtrados y paginados
+      operationId: getCandidates
+      x-implementation: existente_roto
+      x-phase: MVP
+      description: 'Sin porcentajes de compatibilidad ni números aleatorios. Exclusión: yo mismo, cuentas inactivas/incompletas,
+        bloqueados y ya vistos. Filtros de edades y géneros; orden estable para cursor.'
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PublicProfile'
+                    required:
+                    - items
+                  meta:
+                    type: object
+                    properties:
+                      next_cursor:
+                        type: string
+                        nullable: true
+                      has_more:
+                        type: boolean
+                    required:
+                    - next_cursor
+                    - has_more
+                required:
+                - data
+                - meta
+              examples:
+                normal:
+                  summary: Escenario predeterminado
+                  value:
+                    data:
+                      items:
+                      - *id006
+                      - &id013
+                        user_id: 33333333-3333-4333-8333-333333333333
+                        first_name: Camila
+                        age: 25
+                        gender: femenino
+                        city: Bogotá
+                        bio: Café, libros y planes al aire libre.
+                        photos: []
+                        relationship_goal: seria
+                    meta:
+                      next_cursor: null
+                      has_more: false
+                sin_candidatos:
+                  summary: sin candidatos
+                  value:
+                    data:
+                      items: []
+                    meta:
+                      next_cursor: null
+                      has_more: false
+                un_candidato:
+                  summary: un candidato
+                  value:
+                    data:
+                      items:
+                      - *id006
+                    meta:
+                      next_cursor: null
+                      has_more: false
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+        '429':
+          description: Límite de peticiones alcanzado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: Límite de peticiones alcanzado
+                  request_id: req_mock_001
+      parameters: &id007
+      - &id010
+        name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+        description: Cantidad máxima de elementos por página.
+      - &id011
+        name: cursor
+        in: query
+        schema:
+          type: string
+        description: Cursor opaco obtenido en meta.next_cursor.
+  /api/v1/match/swipe:
+    post:
+      tags:
+      - Matches
+      summary: Registrar LIKE o PASS de otro perfil
+      operationId: createSwipe
+      x-implementation: existente_inseguro
+      x-phase: MVP
+      description: Idempotente ante reintento idéntico; un par de LIKE recíprocos produce un único match. No permitir
+        auto-like ni perfiles bloqueados. Una acción repetida o contradictoria requiere semántica transaccional
+        explícita.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SwipeResult'
+                required:
+                - data
+              examples:
+                normal:
+                  summary: Escenario predeterminado
+                  value:
+                    data:
+                      interaction_id: 77777777-7777-4777-8777-777777777777
+                      action: LIKE
+                      is_match: true
+                      match_id: 44444444-4444-4444-8444-444444444444
+                sin_match_mutuo:
+                  summary: sin match mutuo
+                  value:
+                    data:
+                      interaction_id: 77777777-7777-4777-8777-777777777777
+                      action: LIKE
+                      is_match: false
+                      match_id: null
+                descartado:
+                  summary: descartado
+                  value:
+                    data:
+                      interaction_id: 77777777-7777-4777-8777-777777777777
+                      action: PASS
+                      is_match: false
+                      match_id: null
+        '400':
+          description: Petición inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: BAD_REQUEST
+                  message: Petición inválida
+                  request_id: req_mock_001
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '404':
+          description: No encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: NOT_FOUND
+                  message: No encontrado
+                  request_id: req_mock_001
+        '409':
+          description: Conflicto de estado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: CONFLICT
+                  message: Conflicto de estado
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+        '429':
+          description: Límite de peticiones alcanzado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: Límite de peticiones alcanzado
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SwipeInput'
+            example:
+              target_user_id: 22222222-2222-4222-8222-222222222222
+              action: LIKE
+  /api/v1/match/my-matches:
+    get:
+      tags:
+      - Matches
+      summary: Listar mis matches activos
+      operationId: getMyMatches
+      x-implementation: existente_requiere_alineacion
+      x-phase: MVP
+      description: Se listan solo matches del usuario, excluidos bloqueos o cuentas inactivas. last_message y unread_count
+        son campos objetivo para el chat MVP.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Match'
+                    required:
+                    - items
+                  meta:
+                    type: object
+                    properties:
+                      next_cursor:
+                        type: string
+                        nullable: true
+                      has_more:
+                        type: boolean
+                    required:
+                    - next_cursor
+                    - has_more
+                required:
+                - data
+                - meta
+              examples:
+                normal:
+                  summary: Escenario predeterminado
+                  value:
+                    data:
+                      items:
+                      - &id008
+                        id: 44444444-4444-4444-8444-444444444444
+                        other_user: *id006
+                        created_at: '2026-10-27T16:20:00Z'
+                        last_message: &id009
+                          id: 55555555-5555-4555-8555-555555555555
+                          match_id: 44444444-4444-4444-8444-444444444444
+                          sender_user_id: 11111111-1111-4111-8111-111111111111
+                          text: ¡Hola! ¿Cómo estás?
+                          sent_at: '2026-10-27T16:20:00Z'
+                          read_at: null
+                        unread_count: 0
+                    meta:
+                      next_cursor: null
+                      has_more: false
+                sin_matches:
+                  summary: sin matches
+                  value:
+                    data:
+                      items: []
+                    meta:
+                      next_cursor: null
+                      has_more: false
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+      parameters: *id007
+  /api/v1/match/{matchId}:
+    get:
+      tags:
+      - Matches
+      summary: Consultar un match activo
+      operationId: getMatch
+      x-implementation: nuevo
+      x-phase: MVP
+      description: Contrato objetivo; no implica implementación actual.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Match'
+                required:
+                - data
+              example:
+                data: *id008
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '404':
+          description: No encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: NOT_FOUND
+                  message: No encontrado
+                  request_id: req_mock_001
+      parameters:
+      - name: matchId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Identificador UUID de la entidad
+    delete:
+      tags:
+      - Matches
+      summary: Deshacer una coincidencia
+      operationId: unmatch
+      x-implementation: nuevo
+      x-phase: MVP
+      description: Inhabilitar acceso posterior al chat; no restaurar automáticamente el match tras un nuevo swipe.
+      responses:
+        '204':
+          description: Sin contenido
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '404':
+          description: No encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: NOT_FOUND
+                  message: No encontrado
+                  request_id: req_mock_001
+      parameters:
+      - name: matchId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Identificador UUID de la entidad
+  /api/v1/match/{matchId}/messages:
+    get:
+      tags:
+      - Mensajería
+      summary: Listar mensajes de un match
+      operationId: listMessages
+      x-implementation: nuevo
+      x-phase: MVP
+      description: Solo participantes del match activo; sin WebSockets en MVP, el frontend consulta al abrir o actualizar
+        conversación.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Message'
+                    required:
+                    - items
+                  meta:
+                    type: object
+                    properties:
+                      next_cursor:
+                        type: string
+                        nullable: true
+                      has_more:
+                        type: boolean
+                    required:
+                    - next_cursor
+                    - has_more
+                required:
+                - data
+                - meta
+              examples:
+                normal:
+                  summary: Escenario predeterminado
+                  value:
+                    data:
+                      items:
+                      - *id009
+                    meta:
+                      next_cursor: null
+                      has_more: false
+                sin_mensajes:
+                  summary: sin mensajes
+                  value:
+                    data:
+                      items: []
+                    meta:
+                      next_cursor: null
+                      has_more: false
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '404':
+          description: No encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: NOT_FOUND
+                  message: No encontrado
+                  request_id: req_mock_001
+        '429':
+          description: Límite de peticiones alcanzado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: Límite de peticiones alcanzado
+                  request_id: req_mock_001
+      parameters:
+      - name: matchId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Identificador UUID de la entidad
+      - *id010
+      - *id011
+    post:
+      tags:
+      - Mensajería
+      summary: Enviar mensaje de texto
+      operationId: sendMessage
+      x-implementation: nuevo
+      x-phase: MVP
+      description: El servidor determina sender_user_id según token; nunca aceptar remitente en el cuerpo. Idempotencia
+        por idempotency-key opcional para evitar dobles envíos móviles.
+      responses:
+        '201':
+          description: Operación aceptada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Message'
+                required:
+                - data
+              example:
+                data: *id009
+        '400':
+          description: Petición inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: BAD_REQUEST
+                  message: Petición inválida
+                  request_id: req_mock_001
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '404':
+          description: No encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: NOT_FOUND
+                  message: No encontrado
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+        '429':
+          description: Límite de peticiones alcanzado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: Límite de peticiones alcanzado
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+                  example: ¡Hola! ¿Cómo estás?
+              additionalProperties: false
+              required:
+              - text
+            example:
+              text: ¡Hola! ¿Cómo estás?
+      parameters:
+      - name: matchId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Identificador UUID de la entidad
+  /api/v1/match/{matchId}/read:
+    post:
+      tags:
+      - Mensajería
+      summary: Marcar conversación como leída
+      operationId: markMatchRead
+      x-implementation: nuevo
+      x-phase: MVP
+      description: Contrato objetivo; no implica implementación actual.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      unread_count:
+                        type: integer
+                        example: 0
+                    required:
+                    - unread_count
+                required:
+                - data
+              example:
+                data:
+                  unread_count: 0
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '404':
+          description: No encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: NOT_FOUND
+                  message: No encontrado
+                  request_id: req_mock_001
+      parameters:
+      - name: matchId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Identificador UUID de la entidad
+  /api/v1/questionnaire:
+    get:
+      tags:
+      - Cuestionario
+      summary: Consultar preguntas de preferencias
+      operationId: getQuestionnaire
+      x-implementation: nuevo
+      x-phase: MVP
+      description: Preguntas y nombres de identificadores ILUSTRATIVOS; todavía no mapeados al CSV real. No usar
+        los resultados para fabricar porcentajes de afinidad.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Questionnaire'
+                required:
+                - data
+              example:
+                data:
+                  version: draft-1
+                  questions:
+                  - id: importance_communication
+                    label: ¿Qué tan importante es para ti la comunicación?
+                    type: scale_1_5
+                    required: true
+                    min: 1
+                    max: 5
+                  - id: importance_values
+                    label: ¿Qué tan importantes son los valores compartidos?
+                    type: scale_1_5
+                    required: true
+                    min: 1
+                    max: 5
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+  /api/v1/questionnaire/answers:
+    put:
+      tags:
+      - Cuestionario
+      summary: Guardar respuestas de preferencias
+      operationId: putQuestionnaireAnswers
+      x-implementation: nuevo
+      x-phase: MVP
+      description: Guardar por usuario+versión+pregunta como upsert idempotente. Requiere validar catálogo y posible
+        modificación de modelo DB.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AnswersResult'
+                required:
+                - data
+              example:
+                data:
+                  version: draft-1
+                  saved_count: 2
+                  updated_at: '2026-10-27T16:20:00Z'
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '409':
+          description: Conflicto de estado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: CONFLICT
+                  message: Conflicto de estado
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnswersInput'
+            example: &id012
+              version: draft-1
+              answers:
+              - question_id: importance_communication
+                value: 5
+              - question_id: importance_values
+                value: 4
+    get:
+      tags:
+      - Cuestionario
+      summary: Consultar mis respuestas
+      operationId: getQuestionnaireAnswers
+      x-implementation: nuevo
+      x-phase: MVP
+      description: Solo respuestas del propio usuario. No exponer respuestas al perfil público.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AnswersInput'
+                required:
+                - data
+              example:
+                data: *id012
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+  /api/v1/users/{userId}/block:
+    put:
+      tags:
+      - Seguridad
+      summary: Bloquear a otro usuario
+      operationId: blockUser
+      x-implementation: nuevo
+      x-phase: Producción
+      description: Bloqueo inmediato bidireccional para discovery, matches y mensajería. Idempotente.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/BlockReceipt'
+                required:
+                - data
+              example:
+                data:
+                  blocked_user_id: 33333333-3333-4333-8333-333333333333
+                  blocked: true
+        '400':
+          description: Petición inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: BAD_REQUEST
+                  message: Petición inválida
+                  request_id: req_mock_001
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '404':
+          description: No encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: NOT_FOUND
+                  message: No encontrado
+                  request_id: req_mock_001
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Identificador UUID de la entidad
+    delete:
+      tags:
+      - Seguridad
+      summary: Desbloquear usuario
+      operationId: unblockUser
+      x-implementation: nuevo
+      x-phase: Producción
+      description: Desbloquear no restaura automáticamente matches anteriores ni chats eliminados.
+      responses:
+        '204':
+          description: Sin contenido
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '404':
+          description: No encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: NOT_FOUND
+                  message: No encontrado
+                  request_id: req_mock_001
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Identificador UUID de la entidad
+  /api/v1/users/me/blocks:
+    get:
+      tags:
+      - Seguridad
+      summary: Consultar mis usuarios bloqueados
+      operationId: getBlocks
+      x-implementation: nuevo
+      x-phase: Producción
+      description: Contrato objetivo; no implica implementación actual.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PublicProfile'
+                    required:
+                    - items
+                  meta:
+                    type: object
+                    properties:
+                      next_cursor:
+                        type: string
+                        nullable: true
+                      has_more:
+                        type: boolean
+                    required:
+                    - next_cursor
+                    - has_more
+                required:
+                - data
+                - meta
+              example:
+                data:
+                  items:
+                  - *id013
+                meta:
+                  next_cursor: null
+                  has_more: false
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+      parameters: *id007
+  /api/v1/users/{userId}/reports:
+    post:
+      tags:
+      - Seguridad
+      summary: Denunciar un perfil
+      operationId: reportUser
+      x-implementation: nuevo
+      x-phase: Producción
+      description: No exponer reporte a usuario denunciado. Requiere flujo de moderación y retención definido.
+      responses:
+        '201':
+          description: Operación aceptada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ReportReceipt'
+                required:
+                - data
+              example:
+                data:
+                  report_id: 88888888-8888-4888-8888-888888888888
+                  status: received
+        '400':
+          description: Petición inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: BAD_REQUEST
+                  message: Petición inválida
+                  request_id: req_mock_001
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '404':
+          description: No encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: NOT_FOUND
+                  message: No encontrado
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+        '429':
+          description: Límite de peticiones alcanzado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: Límite de peticiones alcanzado
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportInput'
+            example:
+              reason: acoso
+              description: El perfil envía mensajes inapropiados.
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Identificador UUID de la entidad
+  /api/v1/legal/current:
+    get:
+      tags:
+      - Legal
+      summary: Consultar versiones legales publicadas
+      operationId: getLegalVersions
+      x-implementation: nuevo
+      x-phase: Producción
+      description: URLs y versiones son PLACEHOLDERS, deben reemplazarse con documentos reales antes de publicar.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/LegalVersions'
+                required:
+                - data
+              example:
+                data:
+                  terms_version: v1-draft
+                  privacy_version: v1-draft
+                  terms_url: https://legal.example.test/terms
+                  privacy_url: https://legal.example.test/privacy
+      security: []
+  /api/v1/legal/acceptances:
+    post:
+      tags:
+      - Legal
+      summary: Registrar aceptación explícita de versiones
+      operationId: recordLegalAcceptance
+      x-implementation: nuevo
+      x-phase: Producción
+      description: Contrato objetivo; no implica implementación actual.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      accepted_at:
+                        type: string
+                        format: date-time
+                        example: '2026-10-27T16:20:00Z'
+                    required:
+                    - accepted_at
+                required:
+                - data
+              example:
+                data:
+                  accepted_at: '2026-10-27T16:20:00Z'
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '409':
+          description: Conflicto de estado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: CONFLICT
+                  message: Conflicto de estado
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegalAcceptance'
+            example:
+              terms_version: v1-draft
+              privacy_version: v1-draft
+  /api/v1/account/deletion:
+    post:
+      tags:
+      - Seguridad
+      summary: Solicitar eliminación de cuenta
+      operationId: requestAccountDeletion
+      x-implementation: nuevo
+      x-phase: Producción
+      description: Revocar acceso inmediatamente tras aceptar. La ejecución de supresión/retenidos dependerá de
+        política legal y no está implementada.
+      responses:
+        '202':
+          description: Operación aceptada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DeletionReceipt'
+                required:
+                - data
+              example:
+                data:
+                  request_id: 99999999-9999-4999-8999-999999999999
+                  status: accepted
+                  sessions_revoked: true
+        '400':
+          description: Petición inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: BAD_REQUEST
+                  message: Petición inválida
+                  request_id: req_mock_001
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '409':
+          description: Conflicto de estado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: CONFLICT
+                  message: Conflicto de estado
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+        '429':
+          description: Límite de peticiones alcanzado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: Límite de peticiones alcanzado
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountDeletionInput'
+            example:
+              password: ClaveDemoSegura2026!
+              confirm: true
+  /api/v1/notifications:
+    get:
+      tags:
+      - Notificaciones
+      summary: Consultar notificaciones
+      operationId: getNotifications
+      x-implementation: nuevo
+      x-phase: Posterior
+      description: Contrato objetivo; no implica implementación actual.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Notification'
+                    required:
+                    - items
+                  meta:
+                    type: object
+                    properties:
+                      next_cursor:
+                        type: string
+                        nullable: true
+                      has_more:
+                        type: boolean
+                    required:
+                    - next_cursor
+                    - has_more
+                required:
+                - data
+                - meta
+              example:
+                data:
+                  items:
+                  - id: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
+                    type: new_match
+                    title: Tienes un nuevo match
+                    created_at: '2026-10-27T16:20:00Z'
+                    read: false
+                meta:
+                  next_cursor: null
+                  has_more: false
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+      parameters: *id007
+  /api/v1/notifications/{notificationId}/read:
+    post:
+      tags:
+      - Notificaciones
+      summary: Marcar una notificación como leída
+      operationId: readNotification
+      x-implementation: nuevo
+      x-phase: Posterior
+      description: Contrato objetivo; no implica implementación actual.
+      responses:
+        '204':
+          description: Sin contenido
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+      parameters:
+      - name: notificationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Identificador UUID de la entidad
+  /api/v1/auth/me:
+    get:
+      tags:
+      - Autenticación
+      summary: Consultar cuenta autenticada
+      operationId: getAuthenticatedUser
+      x-implementation: nuevo
+      x-phase: MVP
+      description: Permite rehidratar sesión después de recargar la app sin exponer contraseña ni respuestas personales.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserBrief'
+                required:
+                - data
+              example:
+                data: *id001
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+  /api/v1/auth/forgot-password:
+    post:
+      tags:
+      - Autenticación
+      summary: Solicitar recuperación de contraseña
+      operationId: requestPasswordReset
+      x-implementation: nuevo
+      x-phase: Producción
+      description: Respuesta genérica tanto si existe el correo como si no existe; token temporal de uso único enviado
+        por proveedor de email.
+      responses:
+        '202':
+          description: Operación aceptada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        enum:
+                        - accepted
+                    required:
+                    - status
+                required:
+                - data
+              example:
+                data:
+                  status: accepted
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+        '429':
+          description: Límite de peticiones alcanzado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: Límite de peticiones alcanzado
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: ana@example.test
+              additionalProperties: false
+              required:
+              - email
+            example:
+              email: ana@example.test
+      security: []
+  /api/v1/auth/reset-password:
+    post:
+      tags:
+      - Autenticación
+      summary: Restablecer contraseña con token
+      operationId: resetPassword
+      x-implementation: nuevo
+      x-phase: Producción
+      description: Consumir token de uso único y revocar sesiones existentes.
+      responses:
+        '204':
+          description: Sin contenido
+        '400':
+          description: Petición inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: BAD_REQUEST
+                  message: Petición inválida
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+        '429':
+          description: Límite de peticiones alcanzado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: Límite de peticiones alcanzado
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  example: demo-temporary-reset-token
+                new_password:
+                  type: string
+                  minLength: 12
+                  maxLength: 128
+                  example: ClaveNuevaSegura2026!
+              additionalProperties: false
+              required:
+              - token
+              - new_password
+            example:
+              token: demo-temporary-reset-token
+              new_password: ClaveNuevaSegura2026!
+      security: []
+  /api/v1/auth/verify-email:
+    post:
+      tags:
+      - Autenticación
+      summary: Verificar correo electrónico
+      operationId: verifyEmail
+      x-implementation: nuevo
+      x-phase: Producción
+      description: Contrato objetivo; no implica implementación actual.
+      responses:
+        '204':
+          description: Sin contenido
+        '400':
+          description: Petición inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: BAD_REQUEST
+                  message: Petición inválida
+                  request_id: req_mock_001
+        '409':
+          description: Conflicto de estado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: CONFLICT
+                  message: Conflicto de estado
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+        '429':
+          description: Límite de peticiones alcanzado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: Límite de peticiones alcanzado
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  example: demo-verification-token
+              additionalProperties: false
+              required:
+              - token
+            example:
+              token: demo-verification-token
+      security: []
+  /api/v1/auth/resend-verification:
+    post:
+      tags:
+      - Autenticación
+      summary: Reenviar verificación de correo
+      operationId: resendVerification
+      x-implementation: nuevo
+      x-phase: Producción
+      description: Contrato objetivo; no implica implementación actual.
+      responses:
+        '202':
+          description: Operación aceptada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        enum:
+                        - accepted
+                    required:
+                    - status
+                required:
+                - data
+              example:
+                data:
+                  status: accepted
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '429':
+          description: Límite de peticiones alcanzado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: Límite de peticiones alcanzado
+                  request_id: req_mock_001
+  /api/v1/profile/photos/{photoId}/primary:
+    put:
+      tags:
+      - Perfiles
+      summary: Elegir foto principal
+      operationId: setPrimaryPhoto
+      x-implementation: nuevo
+      x-phase: MVP
+      description: Contrato objetivo; no implica implementación actual.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Photo'
+                required:
+                - data
+              example:
+                data: *id004
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '404':
+          description: No encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: NOT_FOUND
+                  message: No encontrado
+                  request_id: req_mock_001
+      parameters:
+      - name: photoId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Identificador UUID de la entidad
+  /api/v1/admin/reports:
+    get:
+      tags:
+      - Moderación
+      summary: Listar reportes para moderación
+      operationId: listModerationReports
+      x-implementation: nuevo
+      x-phase: Producción
+      description: SOLO rol admin verificado en backend; no destinado al frontend público. Registrar accesos administrativos.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ModerationReport'
+                    required:
+                    - items
+                  meta:
+                    type: object
+                    properties:
+                      next_cursor:
+                        type: string
+                        nullable: true
+                      has_more:
+                        type: boolean
+                    required:
+                    - next_cursor
+                    - has_more
+                required:
+                - data
+                - meta
+              example:
+                data:
+                  items:
+                  - id: 88888888-8888-4888-8888-888888888888
+                    reporter_user_id: 11111111-1111-4111-8111-111111111111
+                    reported_user_id: 33333333-3333-4333-8333-333333333333
+                    reason: acoso
+                    status: pending
+                    created_at: '2026-10-27T16:20:00Z'
+                meta:
+                  next_cursor: null
+                  has_more: false
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+      parameters: *id007
+  /api/v1/admin/reports/{reportId}/resolve:
+    post:
+      tags:
+      - Moderación
+      summary: Resolver reporte administrativo
+      operationId: resolveModerationReport
+      x-implementation: nuevo
+      x-phase: Producción
+      description: Solo administradores con autorización de servidor; log de actor, fecha y decisión.
+      responses:
+        '200':
+          description: Respuesta correcta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        enum:
+                        - resolved
+                        - dismissed
+                    required:
+                    - status
+                required:
+                - data
+              example:
+                data:
+                  status: resolved
+        '401':
+          description: Sesión inválida o ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Sesión inválida o ausente
+                  request_id: req_mock_001
+        '403':
+          description: Acceso denegado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Acceso denegado
+                  request_id: req_mock_001
+        '404':
+          description: No encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: NOT_FOUND
+                  message: No encontrado
+                  request_id: req_mock_001
+        '409':
+          description: Conflicto de estado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: CONFLICT
+                  message: Conflicto de estado
+                  request_id: req_mock_001
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Error de validación
+                  request_id: req_mock_001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportResolution'
+            example:
+              action: suspend
+              notes: Incumplimiento confirmado.
+      parameters:
+      - name: reportId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Identificador UUID de la entidad
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Revisa los datos enviados.
+        details:
+          type: object
+          additionalProperties: true
+        request_id:
+          type: string
+          example: req_mock_001
+      required:
+      - code
+      - message
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+      required:
+      - error
+    UserBrief:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 11111111-1111-4111-8111-111111111111
+        email:
+          type: string
+          format: email
+          example: ana@example.test
+        onboarding_complete:
+          type: boolean
+          example: false
+        email_verified:
+          type: boolean
+          example: false
+        status:
+          type: string
+          enum:
+          - pending_profile
+          - active
+          - suspended
+          - deactivated
+      required:
+      - id
+      - email
+      - onboarding_complete
+      - email_verified
+      - status
+    AuthSession:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: mock-access-token-do-not-use-in-production
+        token_type:
+          type: string
+          enum:
+          - Bearer
+        expires_in:
+          type: integer
+          minimum: 1
+          example: 900
+        refresh_token:
+          type: string
+          description: Solo en app móvil; en web se utiliza cookie HttpOnly segura. No guardar en localStorage.
+          example: mock-refresh-token-mobile-only
+        user:
+          $ref: '#/components/schemas/UserBrief'
+      required:
+      - access_token
+      - token_type
+      - expires_in
+      - user
+    RegisterInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          example: ana@example.test
+        password:
+          type: string
+          minLength: 12
+          maxLength: 128
+          example: ClaveDemoSegura2026!
+        accept_terms_version:
+          type: string
+          example: v1-draft
+        accept_privacy_version:
+          type: string
+          example: v1-draft
+      additionalProperties: false
+      required:
+      - email
+      - password
+      - accept_terms_version
+      - accept_privacy_version
+    LoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          example: ana@example.test
+        password:
+          type: string
+          example: ClaveDemoSegura2026!
+      additionalProperties: false
+      required:
+      - email
+      - password
+    RefreshInput:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+          description: En móvil se envía refresh_token. En web usar cookie HttpOnly.
+      additionalProperties: false
+    Photo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 66666666-6666-4666-8666-666666666666
+        url:
+          type: string
+          format: uri
+          example: https://media.example.test/demo/photo-1.webp
+        is_primary:
+          type: boolean
+          example: true
+      required:
+      - id
+      - url
+      - is_primary
+    PublicProfile:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          example: 22222222-2222-4222-8222-222222222222
+        first_name:
+          type: string
+          example: Luis
+        age:
+          type: integer
+          minimum: 18
+          example: 24
+        gender:
+          type: string
+          enum: &id014
+          - masculino
+          - femenino
+          - no_binario
+          - otro
+          - prefiero_no_indicar
+        city:
+          type: string
+          example: Villavicencio
+          nullable: true
+        bio:
+          type: string
+          example: Me gusta caminar y conocer lugares nuevos.
+          nullable: true
+        photos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Photo'
+        relationship_goal:
+          type: string
+          enum: &id015
+          - seria
+          - casual
+          - amistad
+          - sin_definir
+          nullable: true
+      required:
+      - user_id
+      - first_name
+      - age
+      - gender
+      - photos
+    OwnProfile:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          example: 11111111-1111-4111-8111-111111111111
+        first_name:
+          type: string
+          example: Ana
+        birth_date:
+          type: string
+          format: date
+          example: '2002-04-10'
+        age:
+          type: integer
+          minimum: 18
+          example: 24
+        gender:
+          type: string
+          enum: *id014
+        city:
+          type: string
+          example: Villavicencio
+          nullable: true
+        bio:
+          type: string
+          example: Me gusta la música.
+          nullable: true
+        photos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Photo'
+        onboarding_complete:
+          type: boolean
+          example: true
+      required:
+      - user_id
+      - first_name
+      - birth_date
+      - age
+      - gender
+      - photos
+      - onboarding_complete
+    ProfileWrite:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: Ana
+        birth_date:
+          type: string
+          format: date
+          example: '2002-04-10'
+        gender:
+          type: string
+          enum: *id014
+        city:
+          type: string
+          maxLength: 100
+          example: Villavicencio
+        bio:
+          type: string
+          maxLength: 1000
+          example: Me gusta la música.
+      additionalProperties: false
+      required:
+      - first_name
+      - birth_date
+      - gender
+    Preferences:
+      type: object
+      properties:
+        interested_in_genders:
+          type: array
+          items:
+            type: string
+            enum: *id014
+          minItems: 1
+          uniqueItems: true
+          example:
+          - masculino
+          - no_binario
+        min_age:
+          type: integer
+          minimum: 18
+          maximum: 120
+          example: 21
+        max_age:
+          type: integer
+          minimum: 18
+          maximum: 120
+          example: 35
+        target_relationship_type:
+          type: string
+          enum: *id015
+          nullable: true
+      required:
+      - interested_in_genders
+      - min_age
+      - max_age
+    SwipeInput:
+      type: object
+      properties:
+        target_user_id:
+          type: string
+          format: uuid
+          example: 22222222-2222-4222-8222-222222222222
+        action:
+          type: string
+          enum: &id016
+          - LIKE
+          - PASS
+      additionalProperties: false
+      required:
+      - target_user_id
+      - action
+    SwipeResult:
+      type: object
+      properties:
+        interaction_id:
+          type: string
+          format: uuid
+          example: 77777777-7777-4777-8777-777777777777
+        action:
+          type: string
+          enum: *id016
+        is_match:
+          type: boolean
+          example: true
+        match_id:
+          type: string
+          format: uuid
+          example: 44444444-4444-4444-8444-444444444444
+          nullable: true
+      required:
+      - interaction_id
+      - action
+      - is_match
+      - match_id
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 55555555-5555-4555-8555-555555555555
+        match_id:
+          type: string
+          format: uuid
+          example: 44444444-4444-4444-8444-444444444444
+        sender_user_id:
+          type: string
+          format: uuid
+          example: 11111111-1111-4111-8111-111111111111
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          example: ¡Hola! ¿Cómo estás?
+        sent_at:
+          type: string
+          format: date-time
+          example: '2026-10-27T16:20:00Z'
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - id
+      - match_id
+      - sender_user_id
+      - text
+      - sent_at
+      - read_at
+    Match:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 44444444-4444-4444-8444-444444444444
+        other_user:
+          $ref: '#/components/schemas/PublicProfile'
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-10-27T16:20:00Z'
+        last_message:
+          $ref: '#/components/schemas/Message'
+          nullable: true
+        unread_count:
+          type: integer
+          minimum: 0
+          example: 0
+      required:
+      - id
+      - other_user
+      - created_at
+      - unread_count
+    Question:
+      type: object
+      properties:
+        id:
+          type: string
+          example: importance_communication
+        label:
+          type: string
+          example: ¿Qué tan importante es para ti la comunicación?
+        type:
+          type: string
+          enum:
+          - scale_1_5
+        required:
+          type: boolean
+          example: true
+        min:
+          type: integer
+          example: 1
+        max:
+          type: integer
+          example: 5
+      required:
+      - id
+      - label
+      - type
+      - required
+    Questionnaire:
+      type: object
+      properties:
+        version:
+          type: string
+          example: draft-1
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Question'
+      required:
+      - version
+      - questions
+    AnswerItem:
+      type: object
+      properties:
+        question_id:
+          type: string
+          example: importance_communication
+        value:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+      required:
+      - question_id
+      - value
+    AnswersInput:
+      type: object
+      properties:
+        version:
+          type: string
+          example: draft-1
+        answers:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnswerItem'
+      additionalProperties: false
+      required:
+      - version
+      - answers
+    AnswersResult:
+      type: object
+      properties:
+        version:
+          type: string
+          example: draft-1
+        saved_count:
+          type: integer
+          example: 2
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-10-27T16:20:00Z'
+      required:
+      - version
+      - saved_count
+      - updated_at
+    ReportInput:
+      type: object
+      properties:
+        reason:
+          type: string
+          enum:
+          - acoso
+          - contenido_inapropiado
+          - suplantacion
+          - spam
+          - otro
+        description:
+          type: string
+          maxLength: 1000
+          example: El perfil envía mensajes inapropiados.
+      additionalProperties: false
+      required:
+      - reason
+    ReportReceipt:
+      type: object
+      properties:
+        report_id:
+          type: string
+          format: uuid
+          example: 88888888-8888-4888-8888-888888888888
+        status:
+          type: string
+          enum:
+          - received
+      required:
+      - report_id
+      - status
+    BlockReceipt:
+      type: object
+      properties:
+        blocked_user_id:
+          type: string
+          format: uuid
+          example: 33333333-3333-4333-8333-333333333333
+        blocked:
+          type: boolean
+          example: true
+      required:
+      - blocked_user_id
+      - blocked
+    LegalVersions:
+      type: object
+      properties:
+        terms_version:
+          type: string
+          example: v1-draft
+        privacy_version:
+          type: string
+          example: v1-draft
+        terms_url:
+          type: string
+          format: uri
+          example: https://legal.example.test/terms
+        privacy_url:
+          type: string
+          format: uri
+          example: https://legal.example.test/privacy
+      required:
+      - terms_version
+      - privacy_version
+      - terms_url
+      - privacy_url
+    LegalAcceptance:
+      type: object
+      properties:
+        terms_version:
+          type: string
+          example: v1-draft
+        privacy_version:
+          type: string
+          example: v1-draft
+      additionalProperties: false
+      required:
+      - terms_version
+      - privacy_version
+    AccountDeletionInput:
+      type: object
+      properties:
+        password:
+          type: string
+          example: ClaveDemoSegura2026!
+        confirm:
+          type: boolean
+          enum:
+          - true
+      additionalProperties: false
+      required:
+      - password
+      - confirm
+    DeletionReceipt:
+      type: object
+      properties:
+        request_id:
+          type: string
+          format: uuid
+          example: 99999999-9999-4999-8999-999999999999
+        status:
+          type: string
+          enum:
+          - accepted
+        sessions_revoked:
+          type: boolean
+          example: true
+      required:
+      - request_id
+      - status
+      - sessions_revoked
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
+        type:
+          type: string
+          enum:
+          - new_match
+          - new_message
+        title:
+          type: string
+          example: Tienes un nuevo match
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-10-27T16:20:00Z'
+        read:
+          type: boolean
+          example: false
+      required:
+      - id
+      - type
+      - title
+      - created_at
+      - read
+    ModerationReport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 88888888-8888-4888-8888-888888888888
+        reporter_user_id:
+          type: string
+          format: uuid
+          example: 11111111-1111-4111-8111-111111111111
+        reported_user_id:
+          type: string
+          format: uuid
+          example: 33333333-3333-4333-8333-333333333333
+        reason:
+          type: string
+          enum:
+          - acoso
+          - contenido_inapropiado
+          - suplantacion
+          - spam
+          - otro
+        status:
+          type: string
+          enum:
+          - pending
+          - resolved
+          - dismissed
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-10-27T16:20:00Z'
+      required:
+      - id
+      - reported_user_id
+      - reason
+      - status
+      - created_at
+    ReportResolution:
+      type: object
+      properties:
+        action:
+          type: string
+          enum:
+          - dismiss
+          - warn
+          - suspend
+        notes:
+          type: string
+          maxLength: 1000
+          example: Incumplimiento confirmado.
+      additionalProperties: false
+      required:
+      - action
+security:
+- BearerAuth: []

@@ -11,7 +11,12 @@ class Match(db.Model):
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Restricción: Un match único entre A y B (asumiendo que al insertar siempre ordenamos lexicográficamente user_a_id < user_b_id)
+    # Relación de mensajes (sin cascada de eliminación para evitar pérdidas de historial de chat)
+    messages = db.relationship('Message', back_populates='match', order_by='Message.sent_at', passive_deletes=True)
+
+    # Restricción: Un match único entre A y B (forzando orden canónico user_a_id < user_b_id para garantizar unicidad bidireccional)
     __table_args__ = (
         db.UniqueConstraint('user_a_id', 'user_b_id', name='uq_match_pair'),
+        db.CheckConstraint('user_a_id < user_b_id', name='ck_match_ordered_pair'),
+        db.CheckConstraint('user_a_id <> user_b_id', name='ck_match_no_self'),
     )
