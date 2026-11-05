@@ -1,7 +1,11 @@
 import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
+import { ToastController } from '@ionic/angular';
+import { ApiService } from '../../core/services/api.service';
+import { AuthService } from '../../core/services/auth.service';
 
-interface Profile {
-  id: string;
+interface Candidate {
+  user_id: string;
   first_name: string;
   age: number;
   city: string;
@@ -15,67 +19,76 @@ interface Profile {
   styleUrls: ['./dashboard.page.scss'],
 })
 export class DashboardPage implements OnInit {
-  
-  profiles: Profile[] = [];
-  currentProfile: Profile | null = null;
+  profiles: Candidate[] = [];
+  currentProfile: Candidate | null = null;
+  loading = false;
 
-  constructor() { }
+  constructor(
+    private api: ApiService,
+    private auth: AuthService,
+    private router: Router,
+    private toastCtrl: ToastController
+  ) {}
 
   ngOnInit() {
-    this.loadMockProfiles();
-    this.nextProfile();
+    this.loadPotentialMatches();
   }
 
-  loadMockProfiles() {
-    // Estos datos normalmente vendrían del backend /api/v1/discovery
-    // y cruzados por el modelo de ML
-    this.profiles = [
-      {
-        id: '1',
-        first_name: 'Ana',
-        age: 24,
-        city: 'Bogotá',
-        bio: 'Me encanta leer, el café por la mañana y salir a caminar con mi perro.',
-        affinityScore: 87
+  loadPotentialMatches() {
+    this.loading = true;
+    this.api.get<Candidate[]>('/match/potential').subscribe({
+      next: (data: Candidate[]) => {
+        this.profiles = data;
+        this.nextProfile();
+        this.loading = false;
       },
-      {
-        id: '2',
-        first_name: 'Carlos',
-        age: 27,
-        city: 'Medellín',
-        bio: 'Desarrollador de software y aficionado a la fotografía. Buscando algo serio.',
-        affinityScore: 65
-      },
-      {
-        id: '3',
-        first_name: 'Laura',
-        age: 22,
-        city: 'Cali',
-        bio: 'Estudiante universitaria, amo bailar salsa y conocer gente nueva.',
-        affinityScore: 92
+      error: () => {
+        this.loading = false;
       }
-    ];
+    });
   }
 
   nextProfile() {
-    if (this.profiles.length > 0) {
-      this.currentProfile = this.profiles.shift() || null;
-    } else {
-      this.currentProfile = null;
+    this.currentProfile = this.profiles.shift() ?? null;
+    // Si se agotaron, recargar del backend
+    if (!this.currentProfile && !this.loading) {
+      this.loadPotentialMatches();
     }
   }
 
   onLike() {
     if (!this.currentProfile) return;
-    console.log(`Liked profile: ${this.currentProfile.id}`);
-    // TODO: Llamada al backend POST /api/v1/interaction (LIKE)
-    this.nextProfile();
+    this.swipe(this.currentProfile.user_id, 'LIKE');
   }
 
   onPass() {
     if (!this.currentProfile) return;
-    console.log(`Passed profile: ${this.currentProfile.id}`);
-    // TODO: Llamada al backend POST /api/v1/interaction (PASS)
-    this.nextProfile();
+    this.swipe(this.currentProfile.user_id, 'PASS');
+  }
+
+  private swipe(targetUserId: string, action: 'LIKE' | 'PASS') {
+    this.api.post<{ match: boolean }>('/match/swipe', { target_user_id: targetUserId, action }).subscribe({
+      next: async (res: { match: boolean }) => {
+        if (res.match) {
+          const toast = await this.toastCtrl.create({
+            message: `¡Es un match con ${this.currentProfile?.first_name}! 🎉`,
+            duration: 3000,
+            color: 'success',
+            position: 'top'
+          });
+          await toast.present();
+        }
+        this.nextProfile();
+      },
+      error: () => {
+        // En caso de error (ej. 409 duplicado), simplemente avanzar
+        this.nextProfile();
+      }
+    });
+  }
+
+  logout() {
+    this.auth.logout();
+    this.router.navigate(['/login']);
   }
 }

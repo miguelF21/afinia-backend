@@ -33,6 +33,7 @@ class User(db.Model):
     profile = db.relationship('Profile', back_populates='user', uselist=False, cascade='all, delete-orphan')
     refresh_tokens = db.relationship('RefreshToken', back_populates='user', cascade='all, delete-orphan')
     email_verification_tokens = db.relationship('EmailVerificationToken', back_populates='user', cascade='all, delete-orphan')
+    password_reset_tokens = db.relationship('PasswordResetToken', back_populates='user', cascade='all, delete-orphan')
     blocks_issued = db.relationship('UserBlock', foreign_keys='UserBlock.blocker_user_id', back_populates='blocker', cascade='all, delete-orphan')
     blocks_received = db.relationship('UserBlock', foreign_keys='UserBlock.blocked_user_id', back_populates='blocked', cascade='all, delete-orphan')
     reports_filed = db.relationship('UserReport', foreign_keys='UserReport.reporter_user_id', back_populates='reporter')

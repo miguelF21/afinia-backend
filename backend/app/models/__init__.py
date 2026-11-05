@@ -4,7 +4,7 @@ from .discovery import DiscoveryPreference
 from .analytics import AnalyticQuestionnaireAnswer
 from .interaction import ProfileInteraction
 from .match import Match
-from .auth import RefreshToken, EmailVerificationToken
+from .auth import RefreshToken, EmailVerificationToken, PasswordResetToken
 from .block import UserBlock
 from .report import UserReport
 from .legal import LegalConsent

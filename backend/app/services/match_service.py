@@ -227,13 +227,13 @@ def process_swipe(viewer: User, target_user_id_raw: Any, action_raw: Any) -> Dic
         if existing_interaction:
             if existing_interaction.action == action:
                 # Reintento idéntico: no crear duplicados, conservar ID original
-                # Consultar si actualmente existe match entre ambos
+                # Consultar si actualmente existe match activo entre ambos
                 existing_match = Match.query.filter_by(
                     user_a_id=id_min,
                     user_b_id=id_max
                 ).first()
-                is_match = (existing_match is not None)
-                match_id = existing_match.id if existing_match else None
+                is_match = (existing_match is not None and existing_match.closed_at is None)
+                match_id = str(existing_match.id) if is_match else None
                 return {
                     "interaction_id": str(existing_interaction.id),
                     "action": existing_interaction.action,
@@ -278,7 +278,7 @@ def process_swipe(viewer: User, target_user_id_raw: Any, action_raw: Any) -> Dic
                 ).first()
 
                 if not match_obj:
-                    # Crear nuevo match canónico
+                    # Crear nuevo match canónico activo
                     match_obj = Match(
                         id=str(uuid.uuid4()),
                         user_a_id=id_min,
@@ -295,9 +295,14 @@ def process_swipe(viewer: User, target_user_id_raw: Any, action_raw: Any) -> Dic
                             user_b_id=id_max
                         ).first()
 
-                if match_obj:
+                # Si el match existe y no ha sido cerrado, se genera match activo
+                if match_obj and match_obj.closed_at is None:
                     is_match = True
                     match_id = str(match_obj.id)
+                else:
+                    # Match cerrado previamente: no se restaura automáticamente tras un nuevo swipe
+                    is_match = False
+                    match_id = None
 
         db.session.commit()
 
@@ -323,11 +328,12 @@ def process_swipe(viewer: User, target_user_id_raw: Any, action_raw: Any) -> Dic
                 user_a_id=id_min,
                 user_b_id=id_max
             ).first()
+            is_m = (existing_match is not None and existing_match.closed_at is None)
             return {
                 "interaction_id": str(existing.id),
                 "action": existing.action,
-                "is_match": (existing_match is not None),
-                "match_id": str(existing_match.id) if existing_match else None
+                "is_match": is_m,
+                "match_id": str(existing_match.id) if is_m else None
             }
         current_app.logger.error(f"Error de integridad en process_swipe: {ie}")
         raise MatchError("CONFLICT", "Conflicto de concurrencia al registrar interacción.", 409)
@@ -507,7 +513,8 @@ def get_user_matches(
     )
 
     query = db.session.query(Match).filter(
-        or_(Match.user_a_id == current_user.id, Match.user_b_id == current_user.id)
+        or_(Match.user_a_id == current_user.id, Match.user_b_id == current_user.id),
+        Match.closed_at.is_(None)
     )
 
     # Exclusión de bloqueos bidireccionales
@@ -649,7 +656,7 @@ def get_match_by_id(current_user: User, match_id_raw: Any) -> Dict[str, Any]:
         raise MatchError("VALIDATION_ERROR", "El identificador del match debe ser un UUID válido.", 422)
 
     match_obj = Match.query.filter_by(id=match_uuid).first()
-    if not match_obj:
+    if not match_obj or match_obj.closed_at is not None:
         raise MatchError("NOT_FOUND", "Match no encontrado.", 404)
 
     # Validar pertenencia del usuario (si es ajeno, retornar 404 para no filtrar existencia a terceros)
@@ -803,7 +810,7 @@ def validate_match_participant_and_active(current_user: User, match_id_raw: Any)
         raise MatchError("VALIDATION_ERROR", "El identificador del match debe ser un UUID válido.", 422)
 
     match_obj = Match.query.filter_by(id=match_uuid).first()
-    if not match_obj:
+    if not match_obj or match_obj.closed_at is not None:
         raise MatchError("NOT_FOUND", "Match no encontrado.", 404)
 
     # Validar pertenencia del usuario (si es ajeno, 404 para evitar inferencias a terceros)
@@ -878,8 +885,27 @@ def send_message(current_user: User, match_id_raw: Any, payload: Any) -> Dict[st
     if len(text) < 1 or len(text) > 2000:
         raise MatchError("VALIDATION_ERROR", "El mensaje debe tener entre 1 y 2000 caracteres.", 422)
 
-    # Persistencia transaccional
+    # Persistencia transaccional bajo protocolo canónico compartido
     try:
+        from app.services.block_service import lock_user_pair_for_update
+        # 1. Adquirir bloqueo de filas en orden canónico (SELECT FOR UPDATE)
+        lock_user_pair_for_update(str(current_user.id), str(other_user.id))
+
+        # 2. Re-consultar bajo el bloqueo para evitar concurrencia y refrescar ORM
+        match_refreshed = Match.query.filter_by(id=match_obj.id).first()
+        if not match_refreshed or match_refreshed.closed_at is not None:
+            raise MatchError("NOT_FOUND", "Match no encontrado.", 404)
+
+        # 3. Re-evaluar bajo el bloqueo si se creó un bloqueo concurrente
+        is_blocked = db.session.query(UserBlock.id).filter(
+            or_(
+                and_(UserBlock.blocker_user_id == current_user.id, UserBlock.blocked_user_id == other_user.id),
+                and_(UserBlock.blocker_user_id == other_user.id, UserBlock.blocked_user_id == current_user.id),
+            )
+        ).first()
+        if is_blocked:
+            raise MatchError("NOT_FOUND", "Match no encontrado.", 404)
+
         new_msg = Message(
             id=str(uuid.uuid4()),
             match_id=match_obj.id,
@@ -980,6 +1006,25 @@ def mark_match_messages_as_read(current_user: User, match_id_raw: Any) -> Dict[s
 
     now_utc = datetime.now(timezone.utc)
     try:
+        from app.services.block_service import lock_user_pair_for_update
+        # 1. Adquirir bloqueo canónico de filas (SELECT FOR UPDATE)
+        lock_user_pair_for_update(str(current_user.id), str(other_user.id))
+
+        # 2. Re-consultar bajo el bloqueo para evitar concurrencia y refrescar ORM
+        match_refreshed = Match.query.filter_by(id=match_obj.id).first()
+        if not match_refreshed or match_refreshed.closed_at is not None:
+            raise MatchError("NOT_FOUND", "Match no encontrado.", 404)
+
+        # 3. Re-evaluar bajo bloqueo si existe bloqueo bidireccional
+        is_blocked = db.session.query(UserBlock.id).filter(
+            or_(
+                and_(UserBlock.blocker_user_id == current_user.id, UserBlock.blocked_user_id == other_user.id),
+                and_(UserBlock.blocker_user_id == other_user.id, UserBlock.blocked_user_id == current_user.id),
+            )
+        ).first()
+        if is_blocked:
+            raise MatchError("NOT_FOUND", "Match no encontrado.", 404)
+
         Message.query.filter(
             Message.match_id == match_obj.id,
             Message.sender_user_id != current_user.id,
@@ -1006,6 +1051,71 @@ def mark_match_messages_as_read(current_user: User, match_id_raw: Any) -> Dict[s
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error inesperado al marcar mensajes como leídos en match {match_obj.id}: {e}")
+        raise
+
+
+def unmatch(current_user: User, match_id_raw: Any) -> None:
+    """
+    DELETE /api/v1/match/{matchId}
+    Deshace una coincidencia (unmatch) mediante cierre lógico (soft-close):
+    - Inhabilita el acceso posterior al chat.
+    - No restaura automáticamente el match tras un nuevo swipe.
+    - Exige que el usuario autenticado sea participante legítimo del match (403 si es ajeno).
+    - Si el match no existe o el UUID es inválido -> 404 NOT_FOUND.
+    - Si ya está cerrado por un participante autorizado, retorna 204 idempotentemente.
+    - Registra closed_at (UTC) y closed_by_user_id bajo protocolo transaccional canónico.
+    - Preserva el 100% de los mensajes e interacciones históricas.
+    """
+    validate_viewer_matches_eligibility(current_user)
+
+    if not match_id_raw or not isinstance(match_id_raw, str):
+        raise MatchError("NOT_FOUND", "Match no encontrado.", 404)
+
+    try:
+        match_uuid = str(uuid.UUID(str(match_id_raw).strip()))
+    except (ValueError, AttributeError):
+        raise MatchError("NOT_FOUND", "Match no encontrado.", 404)
+
+    match_obj = Match.query.filter_by(id=match_uuid).first()
+    if not match_obj:
+        raise MatchError("NOT_FOUND", "Match no encontrado.", 404)
+
+    # Validar pertenencia del usuario (si es ajeno, 403 FORBIDDEN conforme a OpenAPI)
+    if str(current_user.id) not in (str(match_obj.user_a_id), str(match_obj.user_b_id)):
+        raise MatchError("FORBIDDEN", "No tienes permiso para deshacer esta coincidencia.", 403)
+
+    # Idempotencia: Si ya fue cerrado por un participante autorizado, retornar 204
+    if match_obj.closed_at is not None:
+        return None
+
+    try:
+        from app.services.block_service import lock_user_pair_for_update
+        # 1. Bloqueo transaccional canónico
+        lock_user_pair_for_update(str(match_obj.user_a_id), str(match_obj.user_b_id))
+
+        # 2. Re-consultar bajo el bloqueo para evitar condiciones de carrera con instancias ORM obsoletas
+        match_refreshed = Match.query.filter_by(id=match_uuid).first()
+        if not match_refreshed:
+            raise MatchError("NOT_FOUND", "Match no encontrado.", 404)
+
+        if match_refreshed.closed_at is not None:
+            # Ya fue cerrado concurrentemente por el otro participante o por reintento
+            return None
+
+        # 3. Aplicar cierre lógico registrando timestamp UTC y participante ejecutor
+        now_utc = datetime.now(timezone.utc)
+        match_refreshed.closed_at = now_utc
+        match_refreshed.closed_by_user_id = str(current_user.id)
+
+        db.session.commit()
+        return None
+
+    except MatchError:
+        db.session.rollback()
+        raise
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error inesperado al deshacer match {match_uuid}: {e}")
         raise
 
 

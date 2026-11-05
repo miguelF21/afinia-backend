@@ -10,68 +10,119 @@
 @import "@ionic/angular/css/flex-utils.css";
 @import "@ionic/angular/css/display.css";
 
-/* No dark mode import to ensure pastel palette shines */
+/* Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  /* Pastel Blue */
-  --ion-color-primary: #89C2D9;
-  --ion-color-primary-rgb: 137, 194, 217;
+  /* Pastel Blue -> Modern vibrant gradient */
+  --ion-color-primary: #5A98F2;
+  --ion-color-primary-rgb: 90, 152, 242;
   --ion-color-primary-contrast: #ffffff;
-  --ion-color-primary-contrast-rgb: 255, 255, 255;
-  --ion-color-primary-shade: #79abc1;
-  --ion-color-primary-tint: #95c8dd;
+  --ion-color-primary-shade: #4f86d5;
+  --ion-color-primary-tint: #6bacc2;
 
-  /* Soft Peach to match */
-  --ion-color-secondary: #FFD6BA;
-  --ion-color-secondary-rgb: 255, 214, 186;
-  --ion-color-secondary-contrast: #000000;
-  --ion-color-secondary-contrast-rgb: 0, 0, 0;
-  --ion-color-secondary-shade: #e0bc9c;
-  --ion-color-secondary-tint: #ffdac3;
+  --ion-color-secondary: #FF8BA7;
+  --ion-color-secondary-rgb: 255, 139, 167;
+  --ion-color-secondary-contrast: #ffffff;
+  --ion-color-secondary-shade: #e07a93;
+  --ion-color-secondary-tint: #ff9fb8;
   
-  /* App background */
-  --ion-background-color: #F8F9FA;
-
-  --ion-font-family: 'Poppins', sans-serif;
+  --ion-background-color: #FAFCFF;
+  --ion-font-family: 'Outfit', sans-serif;
 }
 
 body {
   font-family: var(--ion-font-family);
   background: var(--ion-background-color);
+  -webkit-font-smoothing: antialiased;
 }
 
+/* Glassmorphism Inputs */
 .custom-input {
-  --background: #ffffff;
-  --border-radius: 12px;
-  border: 1px solid #e0e6ed;
-  border-radius: 12px;
-  margin-bottom: 15px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+  --background: rgba(255, 255, 255, 0.7);
+  --border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 16px;
+  margin-bottom: 18px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+.custom-input:focus-within {
+  box-shadow: 0 4px 20px rgba(90, 152, 242, 0.15);
+  transform: translateY(-2px);
+  border-color: var(--ion-color-primary);
 }
 
+/* Modern Primary Buttons */
 .primary-btn {
-  --border-radius: 25px;
+  --border-radius: 28px;
+  --background: linear-gradient(135deg, var(--ion-color-primary) 0%, #89C2D9 100%);
   font-weight: 600;
   letter-spacing: 0.5px;
-  height: 50px;
-  --box-shadow: 0 4px 10px rgba(137, 194, 217, 0.4);
+  height: 54px;
+  margin-top: 20px;
+  --box-shadow: 0 8px 20px rgba(90, 152, 242, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.primary-btn:active {
+  transform: scale(0.96);
 }
 
 .link-text {
   color: var(--ion-color-primary);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 500;
+  transition: color 0.2s ease;
+}
+.link-text:hover {
+  color: var(--ion-color-secondary);
 }
 
-/* Force Auth Page background to be nice */
+/* Beautiful Auth Backgrounds */
 .auth-page {
-  --background: #F8F9FA;
+  --background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+}
+.auth-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  padding: 20px;
+}
+.logo-section h1 {
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  margin-bottom: 10px;
+  letter-spacing: -1px;
 }
 .auth-card {
-  background: #ffffff;
-  padding: 30px;
-  border-radius: 20px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-  margin-top: 20px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 35px 25px;
+  border-radius: 24px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 400px;
+  border: 1px solid rgba(255,255,255,0.4);
+}
+.auth-card h2 {
+  font-weight: 700;
+  color: #2b3a4a;
+  margin-bottom: 5px;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.auth-card {
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

@@ -1,4 +1,5 @@
 from functools import wraps
+from datetime import timezone
 from flask import request, current_app
 import jwt
 from app import db
@@ -10,6 +11,7 @@ def token_required(f):
     """
     Middleware / decorador para autenticación Bearer JWT conforme al contrato OpenAPI.
     Verifica firma, vigencia y estado en base de datos del usuario.
+    Invalida access tokens emitidos antes de una actualización de credenciales (ej. restablecimiento de contraseña).
     """
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -43,6 +45,16 @@ def token_required(f):
             return api_error('FORBIDDEN', 'Cuenta suspendida por moderación.', 403)
         if user.lifecycle_status == 'deactivated':
             return api_error('UNAUTHORIZED', 'Cuenta desactivada.', 401)
+
+        # Verificación de revocación por cambio de credenciales mediante huella de hash
+        token_fp = payload.get('pwd_fp')
+        if not token_fp or not isinstance(token_fp, str):
+            return api_error('UNAUTHORIZED', 'Sesión revocada o token emitido sin huella de credenciales.', 401)
+
+        import hashlib
+        current_fp = hashlib.sha256(user.password_hash.encode('utf-8')).hexdigest()[:16]
+        if token_fp != current_fp:
+            return api_error('UNAUTHORIZED', 'Sesión revocada debido a un cambio de credenciales.', 401)
 
         # Inyectar en request context y en argumentos
         request.current_user = user

@@ -591,6 +591,9 @@ def get_photo_media(user: Optional[User], photo_id: str) -> Tuple[str, str, str]
         raise ProfileError('NOT_FOUND', 'Fotografía no encontrada.', 404)
 
     owner_profile = photo.profile
+    owner_user = owner_profile.user if owner_profile else None
+    if not owner_user or not owner_user.is_active or owner_user.lifecycle_status in ('deactivated', 'suspended') or owner_user.deleted_at is not None:
+        raise ProfileError('NOT_FOUND', 'Fotografía no encontrada.', 404)
     owner_user_id = owner_profile.user_id if owner_profile else None
 
     # 1. Validación para estados en moderación o no públicos ('pending', 'processing', 'rejected')

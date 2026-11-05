@@ -7,10 +7,13 @@ from app.utils.rate_limit import rate_limit, get_trusted_client_ip
 from app.services.auth_service import (
     register_user, login_user, refresh_session, logout_session,
     serialize_user_brief, verify_email_token, resend_email_verification,
+    request_password_reset, reset_password_with_token,
+    request_account_deletion,
     AuthError
 )
 
 bp = Blueprint('auth', __name__)
+account_bp = Blueprint('account', __name__)
 
 def _is_mobile_client() -> bool:
     """
@@ -320,4 +323,109 @@ def resend_verification(current_user):
     except Exception as e:
         current_app.logger.error(f"Error inesperado en resend_verification: {str(e)}")
         return api_error('INTERNAL_ERROR', 'Error interno al solicitar el reenvío de verificación.', 500)
+
+
+@bp.route('/forgot-password', methods=['POST'])
+@rate_limit(limit=10, window_seconds=60, key_prefix='forgot_password')
+def forgot_password():
+    """
+    POST /api/v1/auth/forgot-password
+    Inicia la recuperación de contraseña.
+    No requiere JWT.
+    Respuesta exitosa: HTTP 202 Accepted {"data": {"status": "accepted"}}.
+    Previene enumeración respondiendo exactamente igual para correos registrados y no registrados.
+    """
+    if not request.is_json:
+        return api_error('BAD_REQUEST', 'La solicitud debe tener Content-Type application/json.', 400)
+
+    data = request.get_json(silent=True)
+    if data is None:
+        return api_error('BAD_REQUEST', 'El cuerpo de la solicitud no contiene un JSON válido.', 400)
+
+    try:
+        result = request_password_reset(data, ip_address=get_trusted_client_ip())
+        return api_response(result, status_code=202)
+    except AuthError as e:
+        db.session.rollback()
+        return api_error(e.code, e.message, status_code=e.status_code, details=e.details)
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error inesperado en forgot_password: {str(e)}")
+        return api_error('INTERNAL_ERROR', 'Error interno al procesar la solicitud de recuperación.', 500)
+
+
+@bp.route('/reset-password', methods=['POST'])
+@rate_limit(limit=15, window_seconds=60, key_prefix='reset_password')
+def reset_password():
+    """
+    POST /api/v1/auth/reset-password
+    Restablece la contraseña de la cuenta mediante un token de uso único.
+    No requiere JWT.
+    Respuesta exitosa: HTTP 204 No Content (sin cuerpo).
+    """
+    if not request.is_json:
+        return api_error('BAD_REQUEST', 'La solicitud debe tener Content-Type application/json.', 400)
+
+    data = request.get_json(silent=True)
+    if data is None:
+        return api_error('BAD_REQUEST', 'El cuerpo de la solicitud no contiene un JSON válido.', 400)
+
+    try:
+        reset_password_with_token(data, ip_address=get_trusted_client_ip())
+        return Response(status=204)
+    except AuthError as e:
+        db.session.rollback()
+        return api_error(e.code, e.message, status_code=e.status_code, details=e.details)
+    except (DatabaseError, OperationalError, IntegrityError) as e:
+        db.session.rollback()
+        current_app.logger.warning(f"Conflicto de concurrencia en reset_password: {str(e)}")
+        return api_error('VALIDATION_ERROR', 'El token de restablecimiento es inválido, ha expirado o ya ha sido utilizado.', 422)
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error inesperado en reset_password: {str(e)}")
+        return api_error('INTERNAL_ERROR', 'Error interno al procesar el restablecimiento de contraseña.', 500)
+
+
+@account_bp.route('/deletion', methods=['POST'])
+@token_required
+@rate_limit(limit=5, window_seconds=60, key_prefix='account_deletion')
+def request_account_deletion_endpoint(current_user):
+    """
+    POST /api/v1/account/deletion
+    Solicita y ejecuta la eliminación segura de la cuenta autenticada conforme a OpenAPI v1.
+    Exige Bearer JWT válido y confirmación explícita con contraseña actual (AccountDeletionInput).
+    Respuesta exitosa: HTTP 202 Accepted {"data": DeletionReceipt}.
+    """
+    if not request.is_json:
+        return api_error('BAD_REQUEST', 'La solicitud debe tener Content-Type application/json.', 400)
+
+    data = request.get_json(silent=True)
+    if data is None:
+        return api_error('BAD_REQUEST', 'El cuerpo de la solicitud no contiene un JSON válido.', 400)
+
+    try:
+        receipt = request_account_deletion(current_user, data)
+        response = api_response(receipt, status_code=202)
+        secure_cookie = current_app.config.get('SESSION_COOKIE_SECURE', False)
+        response.delete_cookie(
+            'refresh_token',
+            path='/api/v1/auth',
+            httponly=True,
+            samesite='Lax',
+            secure=secure_cookie
+        )
+        return response
+    except AuthError as e:
+        db.session.rollback()
+        return api_error(e.code, e.message, status_code=e.status_code, details=e.details)
+    except (DatabaseError, OperationalError, IntegrityError) as e:
+        db.session.rollback()
+        current_app.logger.warning(f"Conflicto de concurrencia en account/deletion: {str(e)}")
+        return api_error('CONFLICT', 'La cuenta ya ha sido eliminada o se encuentra en proceso de eliminación.', 409)
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error inesperado en account/deletion: {str(e)}")
+        return api_error('INTERNAL_ERROR', 'Error interno al procesar la eliminación de la cuenta.', 500)
+
+
 

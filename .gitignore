@@ -35,4 +35,6 @@ Thumbs.db
 
 # Scratch and audit archives
 scratch/
+backend/backups/
+backups/
 *.zip

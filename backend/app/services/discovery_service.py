@@ -351,26 +351,36 @@ def get_potential_candidates(
             )
         )
 
-    # 7. Condición de cursor opaco con desempate (ORDER BY Profile.created_at DESC, Profile.user_id ASC)
+    from app.services.recommender_service import rank_candidates_by_preference_congruence
+
+    # 7. Recuperar todos los candidatos elegibles que satisfacen los filtros SQL
+    # Orden base determinista por created_at DESC, user_id ASC
+    all_candidates = query.order_by(desc(Profile.created_at), Profile.user_id.asc()).all()
+
+    # 8. Clasificación global por congruencia de preferencias declaradas
+    ranked_candidates = rank_candidates_by_preference_congruence(current_user.id, all_candidates)
+
+    # 9. Paginación determinista basada en cursor sobre la lista global clasificada
+    start_idx = 0
     if cursor_created_at and cursor_user_id:
-        query = query.filter(
-            or_(
-                Profile.created_at < cursor_created_at,
-                and_(
-                    Profile.created_at == cursor_created_at,
-                    Profile.user_id > cursor_user_id
-                )
-            )
-        )
+        found_idx = None
+        for idx, p in enumerate(ranked_candidates):
+            if str(p.user_id) == str(cursor_user_id):
+                found_idx = idx
+                break
+        if found_idx is not None:
+            start_idx = found_idx + 1
+        else:
+            # Fallback si el candidato del cursor fue alterado/descartado:
+            # localizar posición relativa cronológica
+            for idx, p in enumerate(ranked_candidates):
+                if p.created_at < cursor_created_at or (p.created_at == cursor_created_at and str(p.user_id) > str(cursor_user_id)):
+                    start_idx = idx
+                    break
 
-    # Ordenación estable y determinista
-    query = query.order_by(desc(Profile.created_at), Profile.user_id.asc())
-
-    # Traer limit + 1 para determinar si hay más páginas
-    candidates = query.limit(limit + 1).all()
-
-    has_more = len(candidates) > limit
-    paged_profiles = candidates[:limit]
+    end_idx = start_idx + limit
+    paged_profiles = ranked_candidates[start_idx:end_idx]
+    has_more = end_idx < len(ranked_candidates)
 
     next_cursor: Optional[str] = None
     if has_more and paged_profiles:
@@ -378,7 +388,6 @@ def get_potential_candidates(
         next_cursor = encode_cursor(last_profile.created_at, last_profile.user_id, current_user.id)
 
     items = [serialize_public_profile(p) for p in paged_profiles]
-
     return items, next_cursor, has_more
 
 

@@ -42,6 +42,10 @@ class Config:
     RESEND_COOLDOWN_SECONDS = int(os.environ.get('RESEND_COOLDOWN_SECONDS', 60))
     FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:8100')
 
+    # Configuración de recuperación de contraseña (BE-08)
+    PASSWORD_RESET_TOKEN_MINUTES = int(os.environ.get('PASSWORD_RESET_TOKEN_MINUTES', 20))
+    PASSWORD_RESET_COOLDOWN_SECONDS = int(os.environ.get('PASSWORD_RESET_COOLDOWN_SECONDS', 60))
+
     # Configuración del transporte de correo (in_memory para QA/tests, smtp para producción)
     MAIL_BACKEND = os.environ.get('MAIL_BACKEND', 'in_memory')
     SMTP_HOST = os.environ.get('SMTP_HOST')

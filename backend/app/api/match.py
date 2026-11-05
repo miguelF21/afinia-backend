@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, jsonify, request, current_app, Response
 from app.auth.middleware import token_required
 from app.models import Profile, Match, ProfileInteraction
 from app import db
@@ -53,6 +53,7 @@ from app.services.match_service import (
     send_message,
     get_match_messages,
     mark_match_messages_as_read,
+    unmatch,
 )
 
 
@@ -153,6 +154,24 @@ def get_match_detail(current_user, match_id):
     except Exception as e:
         current_app.logger.error(f"Error inesperado en get_match_detail: {str(e)}")
         return api_error('INTERNAL_ERROR', 'Error interno al consultar detalle de match.', 500)
+
+
+@bp.route('/<match_id>', methods=['DELETE'])
+@token_required
+def delete_match_endpoint(current_user, match_id):
+    """
+    DELETE /api/v1/match/{matchId}
+    Deshace una coincidencia conforme a OpenAPI v1.
+    Retorna 204 No Content.
+    """
+    try:
+        unmatch(current_user, match_id)
+        return Response(status=204)
+    except MatchError as e:
+        return api_error(e.code, e.message, status_code=e.status_code, details=e.details)
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado en delete_match_endpoint: {str(e)}")
+        return api_error('INTERNAL_ERROR', 'Error interno al deshacer la coincidencia.', 500)
 
 
 @bp.route('/<match_id>/messages', methods=['GET'])

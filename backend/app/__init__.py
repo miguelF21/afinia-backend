@@ -28,8 +28,9 @@ def create_app(config_class=Config):
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
     # Registro de Blueprints (Rutas API)
-    from app.api.auth import bp as auth_bp
+    from app.api.auth import bp as auth_bp, account_bp
     app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
+    app.register_blueprint(account_bp, url_prefix='/api/v1/account')
     
     from app.api.profile import bp as profile_bp
     app.register_blueprint(profile_bp, url_prefix='/api/v1/profile')
@@ -45,6 +46,9 @@ def create_app(config_class=Config):
 
     from app.api.users import bp as users_bp
     app.register_blueprint(users_bp, url_prefix='/api/v1/users')
+
+    from app.api.questionnaire import bp as questionnaire_bp
+    app.register_blueprint(questionnaire_bp, url_prefix='/api/v1/questionnaire')
 
     @app.route('/health', methods=['GET'])
     def health_check():

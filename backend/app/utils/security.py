@@ -20,18 +20,31 @@ def verify_password(password_hash: str, password: str) -> bool:
         return False
     return check_password_hash(password_hash, password)
 
-def create_access_token(user_id: str, email: str, role: str, secret_key: str, expires_in: int = 900) -> str:
-    """Genera un JWT Access Token firmado con expiración corta (por defecto 900s / 15m)."""
+def create_access_token(user_id: str, email: str, role: str, secret_key: str, expires_in: int = 900, password_hash: str = None) -> str:
+    """Genera un JWT Access Token firmado con expiración corta (por defecto 900s / 15m) e incorpora huella de credenciales."""
     now = datetime.now(timezone.utc)
+    if not password_hash and user_id:
+        try:
+            from flask import has_app_context
+            if has_app_context():
+                from app import db
+                from app.models.user import User
+                user_obj = db.session.get(User, user_id)
+                if user_obj and user_obj.password_hash:
+                    password_hash = user_obj.password_hash
+        except Exception:
+            pass
     payload = {
         'sub': user_id,
         'email': email,
         'role': role,
         'type': 'access',
         'iss': 'afinia-api',
-        'iat': now,
-        'exp': now + timedelta(seconds=expires_in)
+        'iat': now.timestamp(),
+        'exp': now.timestamp() + expires_in
     }
+    if password_hash:
+        payload['pwd_fp'] = hashlib.sha256(password_hash.encode('utf-8')).hexdigest()[:16]
     return jwt.encode(payload, secret_key, algorithm='HS256')
 
 def decode_access_token(token: str, secret_key: str) -> dict:

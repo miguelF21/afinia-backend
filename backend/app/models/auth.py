@@ -38,3 +38,22 @@ class EmailVerificationToken(db.Model):
     def __repr__(self):
         return f'<EmailVerificationToken {self.id} user={self.user_id}>'
 
+
+class PasswordResetToken(db.Model):
+    __tablename__ = 'password_reset_tokens'
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    token_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    consumed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    revoked_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    # Relaciones
+    user = db.relationship('User', back_populates='password_reset_tokens')
+
+    def __repr__(self):
+        return f'<PasswordResetToken {self.id} user={self.user_id}>'
+
+

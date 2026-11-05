@@ -5,7 +5,11 @@ import threading
 from datetime import datetime, timezone, timedelta
 from flask import current_app
 from app import db
-from app.models import User, RefreshToken, EmailVerificationToken, LegalConsent, Profile
+from app.models import (
+    User, RefreshToken, EmailVerificationToken, PasswordResetToken,
+    LegalConsent, Profile, ProfilePhoto, DiscoveryPreference,
+    AnalyticQuestionnaireAnswer, ProfileInteraction, Match
+)
 from app.utils.security import (
     hash_password, verify_password,
     create_access_token, generate_refresh_token, hash_refresh_token,
@@ -186,7 +190,8 @@ def login_user(data: dict, user_agent: str = None, ip_address: str = None) -> tu
         email=user.email,
         role=user.role,
         secret_key=current_app.config['SECRET_KEY'],
-        expires_in=expires_in
+        expires_in=expires_in,
+        password_hash=user.password_hash
     )
 
     raw_refresh = generate_refresh_token()
@@ -296,7 +301,8 @@ def refresh_session(raw_refresh_token: str, user_agent: str = None, ip_address: 
         email=user.email,
         role=user.role,
         secret_key=current_app.config['SECRET_KEY'],
-        expires_in=expires_in
+        expires_in=expires_in,
+        password_hash=user.password_hash
     )
 
     db.session.commit()
@@ -515,4 +521,377 @@ def resend_email_verification(user: User) -> dict:
         db.session.commit()
 
         return {'status': 'accepted'}
+
+
+_reset_password_mutex = threading.Lock()
+_forgot_password_mutex = threading.Lock()
+
+def request_password_reset(data: dict, ip_address: str = None) -> dict:
+    """
+    POST /api/v1/auth/forgot-password
+    Inicia la recuperación segura de contraseña.
+    - No requiere JWT.
+    - Valida formato de correo y prohíbe campos no permitidos.
+    - Responde uniformemente 202 {"data": {"status": "accepted"}} tanto para correos
+      registrados como inexistentes o inactivos, previniendo ataques de enumeración.
+    - Aplica política de reenvío: invalida tokens previos si se emite uno nuevo.
+    - En caso de fallo en el transporte de correo, revierte la transacción.
+    """
+    if not isinstance(data, dict):
+        raise AuthError('BAD_REQUEST', 'El cuerpo de la solicitud debe ser un objeto JSON válido.', 400)
+
+    # OpenAPI: additionalProperties: false, required: [email]
+    allowed_keys = {'email'}
+    extra_keys = set(data.keys()) - allowed_keys
+    if extra_keys:
+        raise AuthError('BAD_REQUEST', f'Campos no permitidos en la solicitud: {", ".join(sorted(extra_keys))}.', 400)
+
+    if 'email' not in data or data['email'] is None:
+        raise AuthError('VALIDATION_ERROR', 'El campo email es obligatorio.', 422)
+
+    raw_email = str(data['email']).strip()
+    if not raw_email:
+        raise AuthError('VALIDATION_ERROR', 'El campo email no puede estar vacío.', 422)
+
+    # Validar formato y longitud máxima
+    if not validate_email_format(raw_email):
+        raise AuthError('VALIDATION_ERROR', 'Formato de correo electrónico inválido.', 422)
+
+    normalized_email = normalize_email(raw_email)
+
+    # Sincronización para solicitudes concurrentes
+    with _forgot_password_mutex:
+        user = User.query.filter_by(email=normalized_email).first()
+
+        # Protección estricta contra enumeración de cuentas:
+        # Si el usuario no existe, está inactivo o desactivado, responder 202 idéntico sin revelar nada
+        if not user or not user.is_active or user.lifecycle_status == 'deactivated':
+            return {'status': 'accepted'}
+
+        now = datetime.now(timezone.utc)
+        cooldown = current_app.config.get('PASSWORD_RESET_COOLDOWN_SECONDS', 60)
+
+        # Rate limiting / Cooldown por usuario para evitar spam o saturación de tokens
+        last_token = (
+            PasswordResetToken.query
+            .filter_by(user_id=user.id)
+            .order_by(PasswordResetToken.created_at.desc())
+            .first()
+        )
+        if last_token and last_token.created_at:
+            elapsed = (now - _as_utc(last_token.created_at)).total_seconds()
+            if elapsed < cooldown:
+                # Retornar 202 sin reemitir nuevo correo durante la ventana de enfriamiento
+                return {'status': 'accepted'}
+
+        # Generar token de recuperación criptográficamente seguro (256 bits de entropía)
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
+        minutes = current_app.config.get('PASSWORD_RESET_TOKEN_MINUTES', 20)
+        expires_at = now + timedelta(minutes=minutes)
+
+        new_token_record = PasswordResetToken(
+            id=str(uuid.uuid4()),
+            user_id=user.id,
+            token_hash=token_hash,
+            created_at=now,
+            expires_at=expires_at
+        )
+
+        # Despachar correo transaccional ANTES de invalidar enlaces anteriores
+        from app.services.email_service import email_service
+        try:
+            email_service.send_password_reset_email(user.email, raw_token)
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Fallo en transporte de correo al enviar recuperación a {user.email}: {str(e)}")
+            raise AuthError(
+                'INTERNAL_ERROR',
+                'No fue posible enviar el correo de recuperación debido a un error en el transporte.',
+                500
+            )
+
+        # Invalidar tokens anteriores activos del usuario bajo política de reenvío explícita
+        PasswordResetToken.query.filter(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.consumed_at.is_(None),
+            PasswordResetToken.revoked_at.is_(None)
+        ).update({'revoked_at': now}, synchronize_session=False)
+
+        db.session.add(new_token_record)
+        db.session.commit()
+
+        return {'status': 'accepted'}
+
+
+def reset_password_with_token(data: dict, ip_address: str = None) -> None:
+    """
+    POST /api/v1/auth/reset-password
+    Restablece la contraseña utilizando un token válido y no consumido.
+    - No requiere JWT.
+    - Valida contraseña conforme a la política vigente (12 a 128 caracteres).
+    - Consume el token en una transacción atómica.
+    - Revoca todos los refresh tokens del usuario y actualiza updated_at para invalidar access tokens previos.
+    - Solo 1 operación concurrente puede tener éxito para el mismo token.
+    """
+    if not isinstance(data, dict):
+        raise AuthError('BAD_REQUEST', 'El cuerpo de la solicitud debe ser un objeto JSON válido.', 400)
+
+    # OpenAPI: additionalProperties: false, required: [token, new_password]
+    allowed_keys = {'token', 'new_password'}
+    extra_keys = set(data.keys()) - allowed_keys
+    if extra_keys:
+        raise AuthError('BAD_REQUEST', f'Campos no permitidos en la solicitud: {", ".join(sorted(extra_keys))}.', 400)
+
+    for req_field in ('token', 'new_password'):
+        if req_field not in data or data[req_field] is None:
+            raise AuthError('VALIDATION_ERROR', f'El campo {req_field} es obligatorio.', 422)
+
+    raw_token = str(data['token']).strip()
+    if not raw_token:
+        raise AuthError('VALIDATION_ERROR', 'El token de restablecimiento no puede estar vacío.', 422)
+
+    new_password = str(data['new_password'])
+
+    # Validar longitud y política de contraseña (12-128 caracteres)
+    is_valid_pwd, pwd_error = validate_password_policy(new_password)
+    if not is_valid_pwd:
+        raise AuthError('VALIDATION_ERROR', pwd_error, 422)
+
+    with _reset_password_mutex:
+        token_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
+        now = datetime.now(timezone.utc)
+
+        # 1. Bloqueo pesimista del token en PostgreSQL para serializar ejecuciones concurrentes
+        token_query = PasswordResetToken.query.filter_by(token_hash=token_hash)
+        if db.engine.dialect.name == 'postgresql':
+            token_query = token_query.with_for_update()
+
+        token_record = token_query.first()
+
+        if not token_record:
+            raise AuthError('VALIDATION_ERROR', 'El token de restablecimiento es inválido o no existe.', 422)
+
+        if token_record.consumed_at is not None:
+            raise AuthError('VALIDATION_ERROR', 'El token de restablecimiento es inválido, ha expirado o ya ha sido utilizado.', 422)
+
+        if token_record.revoked_at is not None:
+            raise AuthError('VALIDATION_ERROR', 'El token de restablecimiento es inválido, ha expirado o ya ha sido utilizado.', 422)
+
+        if _as_utc(token_record.expires_at) < now:
+            raise AuthError('VALIDATION_ERROR', 'El token de restablecimiento es inválido, ha expirado o ya ha sido utilizado.', 422)
+
+        # 2. Bloqueo pesimista del usuario
+        user_query = User.query.filter_by(id=token_record.user_id)
+        if db.engine.dialect.name == 'postgresql':
+            user_query = user_query.with_for_update()
+
+        user = user_query.first()
+        if not user or not user.is_active:
+            raise AuthError('VALIDATION_ERROR', 'Usuario asociado al token no encontrado o inactivo.', 422)
+
+        if user.lifecycle_status in ('suspended', 'deactivated'):
+            raise AuthError('VALIDATION_ERROR', 'No es posible restablecer la contraseña debido al estado actual de la cuenta.', 422)
+
+        # 3. Transacción atómica:
+        # - Consumir el token
+        token_record.consumed_at = now
+
+        # - Actualizar hash de contraseña con scrypt
+        user.password_hash = hash_password(new_password)
+        user.updated_at = now
+
+        # - Revocar todos los refresh tokens activos del usuario
+        RefreshToken.query.filter(
+            RefreshToken.user_id == user.id,
+            RefreshToken.revoked_at.is_(None)
+        ).update({'revoked_at': now}, synchronize_session=False)
+
+        # - Persistencia en BD
+        db.session.commit()
+
+
+_account_deletion_mutex = threading.Lock()
+
+
+def request_account_deletion(current_user: User, data: dict) -> dict:
+    """
+    POST /api/v1/account/deletion
+    Ejecuta el proceso transaccional de eliminación segura de cuenta conforme a OpenAPI v1:
+    - Exige sesión autenticada (current_user) y prohíbe eliminar cuentas ajenas.
+    - Valida AccountDeletionInput: password (string no vacío) y confirm (boolean True), sin propiedades extra.
+    - Reautentica al usuario verificando su contraseña actual.
+    - Adquiere bloqueo pesimista (SELECT FOR UPDATE) sobre la fila User para serializar solicitudes concurrentes.
+    - Elimina físicamente datos personales y operativos propios: ProfilePhoto, Profile, DiscoveryPreference,
+      AnalyticQuestionnaireAnswer, ProfileInteraction, EmailVerificationToken y PasswordResetToken.
+    - Revoca todas las sesiones de renovación (RefreshToken) limpiando metadatos de red (ip_address, user_agent).
+    - Cierra lógicamente los matches abiertos (closed_at, closed_by_user_id) preservando matches cerrados y mensajes.
+    - Preserva registros con retención/integridad referencial RESTRICT (LegalConsent sin IP, UserReport, UserBlock).
+    - Anonimiza irreversiblemente el correo (deleted+<uuid>@deleted.afinia.invalid), rota password_hash (invalidando
+      instantáneamente todos los JWT emitidos antes de la eliminación vía pwd_fp), desactiva la cuenta
+      (is_active=False, lifecycle_status='deactivated', email_verified=False) y registra deleted_at (UTC).
+    - Elimina los archivos físicos de fotografías del almacenamiento únicamente tras confirmar el commit en BD.
+    """
+    if not current_user or not getattr(current_user, 'id', None):
+        raise AuthError('UNAUTHORIZED', 'Sesión inválida o ausente.', 401)
+
+    if not isinstance(data, dict):
+        raise AuthError('BAD_REQUEST', 'El cuerpo de la solicitud debe ser un objeto JSON válido.', 400)
+
+    # OpenAPI AccountDeletionInput: additionalProperties: false, required: [password, confirm]
+    allowed_keys = {'password', 'confirm'}
+    extra_keys = set(data.keys()) - allowed_keys
+    if extra_keys:
+        raise AuthError(
+            'BAD_REQUEST',
+            f'Campos no permitidos en la solicitud: {", ".join(sorted(extra_keys))}.',
+            400
+        )
+
+    if 'password' not in data or data['password'] is None:
+        raise AuthError('VALIDATION_ERROR', 'El campo password es obligatorio.', 422)
+
+    if 'confirm' not in data or data['confirm'] is None:
+        raise AuthError('VALIDATION_ERROR', 'El campo confirm es obligatorio.', 422)
+
+    confirm_val = data['confirm']
+    if not isinstance(confirm_val, bool) or confirm_val is not True:
+        raise AuthError(
+            'VALIDATION_ERROR',
+            'Debe confirmar explícitamente la eliminación de la cuenta (confirm=true).',
+            422
+        )
+
+    raw_password = data['password']
+    if not isinstance(raw_password, str) or not raw_password.strip():
+        raise AuthError(
+            'VALIDATION_ERROR',
+            'La contraseña de confirmación es obligatoria y no puede estar vacía.',
+            422
+        )
+
+    target_user_id = str(current_user.id)
+
+    with _account_deletion_mutex:
+        db.session.expire_all()
+        now = datetime.now(timezone.utc)
+
+        user_query = User.query.filter_by(id=target_user_id).populate_existing()
+        if db.engine.dialect.name == 'postgresql':
+            user_query = user_query.with_for_update()
+
+        user_db = user_query.first()
+        if not user_db:
+            raise AuthError('UNAUTHORIZED', 'Usuario inexistente.', 401)
+
+        if user_db.deleted_at is not None or not user_db.is_active or user_db.lifecycle_status == 'deactivated':
+            raise AuthError('CONFLICT', 'La cuenta ya ha sido eliminada o desactivada previamente.', 409)
+
+        if user_db.lifecycle_status == 'suspended':
+            raise AuthError('FORBIDDEN', 'La cuenta se encuentra suspendida por moderación.', 403)
+
+        # Reautenticación con la contraseña actual del propio usuario autenticado
+        if not verify_password(user_db.password_hash, raw_password):
+            raise AuthError('UNAUTHORIZED', 'Contraseña de confirmación incorrecta.', 401)
+
+        storage_keys_to_delete = []
+        try:
+            # 1. Fotografías privadas y Perfil (PII)
+            profile = Profile.query.filter_by(user_id=user_db.id).first()
+            if profile:
+                photos = ProfilePhoto.query.filter_by(profile_id=profile.id).all()
+                for photo in photos:
+                    if photo.storage_key:
+                        storage_keys_to_delete.append(photo.storage_key)
+                    db.session.delete(photo)
+                db.session.flush()
+                db.session.delete(profile)
+
+            # 2. Preferencias de descubrimiento
+            DiscoveryPreference.query.filter_by(user_id=user_db.id).delete(synchronize_session=False)
+
+            # 3. Respuestas del cuestionario analítico (16 preguntas)
+            AnalyticQuestionnaireAnswer.query.filter_by(user_id=user_db.id).delete(synchronize_session=False)
+
+            # 4. Likes y passes de descubrimiento (ProfileInteraction)
+            ProfileInteraction.query.filter(
+                db.or_(
+                    ProfileInteraction.viewer_user_id == user_db.id,
+                    ProfileInteraction.shown_user_id == user_db.id
+                )
+            ).delete(synchronize_session=False)
+
+            # 5. Cierre lógico de matches abiertos (preservando matches cerrados y mensajes por RESTRICT)
+            open_matches = Match.query.filter(
+                db.or_(
+                    Match.user_a_id == user_db.id,
+                    Match.user_b_id == user_db.id
+                ),
+                Match.closed_at.is_(None)
+            ).all()
+            for m in open_matches:
+                m.closed_at = now
+                m.closed_by_user_id = user_db.id
+
+            # 6. Revocación total de refresh tokens y limpieza de IP/User-Agent
+            RefreshToken.query.filter(
+                RefreshToken.user_id == user_db.id,
+                RefreshToken.revoked_at.is_(None)
+            ).update(
+                {'revoked_at': now, 'ip_address': None, 'user_agent': None},
+                synchronize_session=False
+            )
+            RefreshToken.query.filter(
+                RefreshToken.user_id == user_db.id,
+                RefreshToken.revoked_at.isnot(None)
+            ).update(
+                {'ip_address': None, 'user_agent': None},
+                synchronize_session=False
+            )
+
+            # 7. Eliminación de tokens de verificación de correo y recuperación de contraseña
+            EmailVerificationToken.query.filter_by(user_id=user_db.id).delete(synchronize_session=False)
+            PasswordResetToken.query.filter_by(user_id=user_db.id).delete(synchronize_session=False)
+
+            # 8. Limpieza de dirección IP en consentimientos legales (preservando fila por RESTRICT)
+            LegalConsent.query.filter_by(user_id=user_db.id).update(
+                {'ip_address': None},
+                synchronize_session=False
+            )
+
+            # 9. Anonimización irreversible de PII e invalidación de credenciales en User
+            user_db.email = f"deleted+{user_db.id}@deleted.afinia.invalid"
+            user_db.password_hash = hash_password(secrets.token_urlsafe(48))
+            user_db.is_active = False
+            user_db.email_verified = False
+            user_db.lifecycle_status = 'deactivated'
+            user_db.deleted_at = now
+            user_db.updated_at = now
+
+            db.session.commit()
+        except AuthError:
+            db.session.rollback()
+            raise
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error transaccional al eliminar cuenta {target_user_id}: {str(e)}")
+            raise AuthError('INTERNAL_ERROR', 'Error interno al procesar la eliminación de la cuenta.', 500)
+
+        # 10. Eliminación física de archivos multimedia únicamente tras confirmar el commit en BD
+        from app.services.storage_service import storage_adapter
+        for key in storage_keys_to_delete:
+            try:
+                storage_adapter.delete_file(key)
+            except Exception as storage_err:
+                current_app.logger.warning(
+                    f"Error al eliminar archivo físico {key} tras eliminación de cuenta {target_user_id}: {storage_err}"
+                )
+
+        return {
+            'request_id': str(uuid.uuid4()),
+            'status': 'accepted',
+            'sessions_revoked': True
+        }
+
+
 

@@ -1,5 +1,6 @@
 import { NgModule } from '@angular/core';
 import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
+import { AuthGuard } from './core/guards/auth.guard';
 
 const routes: Routes = [
   {
@@ -9,19 +10,21 @@ const routes: Routes = [
   },
   {
     path: 'login',
-    loadChildren: () => import('./features/auth/login/login.module').then( m => m.LoginPageModule)
+    loadChildren: () => import('./features/auth/login/login.module').then(m => m.LoginPageModule)
   },
   {
     path: 'register',
-    loadChildren: () => import('./features/auth/register/register.module').then( m => m.RegisterPageModule)
+    loadChildren: () => import('./features/auth/register/register.module').then(m => m.RegisterPageModule)
   },
   {
     path: 'onboarding',
-    loadChildren: () => import('./features/onboarding/onboarding.module').then( m => m.OnboardingPageModule)
+    canActivate: [AuthGuard],
+    loadChildren: () => import('./features/onboarding/onboarding.module').then(m => m.OnboardingPageModule)
   },
   {
     path: 'dashboard',
-    loadChildren: () => import('./features/dashboard/dashboard.module').then( m => m.DashboardPageModule)
+    canActivate: [AuthGuard],
+    loadChildren: () => import('./features/dashboard/dashboard.module').then(m => m.DashboardPageModule)
   },
 ];
 
@@ -31,4 +34,4 @@ const routes: Routes = [
   ],
   exports: [RouterModule]
 })
-export class AppRoutingModule { }
+export class AppRoutingModule {}

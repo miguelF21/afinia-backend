@@ -16,11 +16,12 @@ from app.services.profile_service import (
 
 bp = Blueprint('profile', __name__)
 
+@bp.route('', methods=['GET'])
 @bp.route('/', methods=['GET'])
 @token_required
 def get_my_profile(current_user):
     """
-    GET /api/v1/profile/
+    GET /api/v1/profile o GET /api/v1/profile/
     Retorna el perfil propio del usuario autenticado (OwnProfile).
     """
     try:
@@ -32,11 +33,12 @@ def get_my_profile(current_user):
         current_app.logger.error(f"Error inesperado en get_my_profile: {str(e)}")
         return api_error('INTERNAL_ERROR', 'Error interno al consultar el perfil.', 500)
 
+@bp.route('', methods=['POST'])
 @bp.route('/', methods=['POST'])
 @token_required
 def create_my_profile(current_user):
     """
-    POST /api/v1/profile/
+    POST /api/v1/profile o POST /api/v1/profile/
     Crea el perfil del usuario autenticado a partir de ProfileWrite.
     Retorna 201 Created con OwnProfile o 409 Conflict si ya existe.
     """
@@ -56,6 +58,7 @@ def create_my_profile(current_user):
         current_app.logger.error(f"Error inesperado en create_my_profile: {str(e)}")
         return api_error('INTERNAL_ERROR', 'Error interno al crear el perfil.', 500)
 
+@bp.route('', methods=['PUT'])
 @bp.route('/', methods=['PUT'])
 @token_required
 def replace_my_profile(current_user):

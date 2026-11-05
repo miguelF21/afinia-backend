@@ -13,12 +13,16 @@
 .profile-card {
   width: 100%;
   max-width: 400px;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  border-radius: 28px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
   overflow: hidden;
-  margin-bottom: 20px;
+  margin-bottom: 25px;
   background: white;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 
+  &:hover {
+    transform: translateY(-8px);
+  }
   .image-placeholder {
     height: 350px;
     background: linear-gradient(135deg, var(--ion-color-primary-tint), var(--ion-color-secondary-tint));

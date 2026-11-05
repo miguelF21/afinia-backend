@@ -1,12 +1,9 @@
 <ion-header class="ion-no-border">
   <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-menu-button color="primary"></ion-menu-button>
-    </ion-buttons>
     <ion-title class="ion-text-center">Descubrir</ion-title>
     <ion-buttons slot="end">
-      <ion-button>
-        <ion-icon name="person-circle-outline" color="medium"></ion-icon>
+      <ion-button (click)="logout()" title="Cerrar sesión">
+        <ion-icon name="log-out-outline" color="medium"></ion-icon>
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
