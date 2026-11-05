@@ -299,6 +299,12 @@ def process_swipe(viewer: User, target_user_id_raw: Any, action_raw: Any) -> Dic
                 if match_obj and match_obj.closed_at is None:
                     is_match = True
                     match_id = str(match_obj.id)
+                    from app.services.notification_service import emit_match_notifications
+                    emit_match_notifications(
+                        user_a_id=id_min,
+                        user_b_id=id_max,
+                        match_id=match_id,
+                    )
                 else:
                     # Match cerrado previamente: no se restaura automáticamente tras un nuevo swipe
                     is_match = False
@@ -915,6 +921,12 @@ def send_message(current_user: User, match_id_raw: Any, payload: Any) -> Dict[st
             read_at=None
         )
         db.session.add(new_msg)
+        from app.services.notification_service import emit_message_notification
+        emit_message_notification(
+            recipient_user_id=str(other_user.id),
+            message_id=str(new_msg.id),
+            created_at=new_msg.sent_at,
+        )
         db.session.commit()
 
         serialized = serialize_message(new_msg)

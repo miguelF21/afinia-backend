@@ -1,10 +1,10 @@
 # AFINIA — Guía Oficial de Integración Frontend (Ionic / Angular)
 
 **Versión del Contrato:** `OpenAPI v1` (`docs/api/afinia-openapi-v1.yaml`)  
-**Revisión Alembic de Base de Datos:** `ab128894ff73`  
+**Revisión Alembic de Base de Datos:** `a7b3c9d1e5f2 (head)`  
 **Destinatario:** Desarrollador Frontend (Ionic / Angular / Capacitor)  
 **Fecha de Certificación:** Noviembre 2026  
-**Estado:** Backend Verificado y Certificado con Paridad Total OpenAPI v1 / Flask  
+**Estado:** Backend Verificado y Certificado con Paridad OpenAPI v1 / Flask (41/41 Operaciones Activas)  
 
 ---
 
@@ -200,6 +200,9 @@ Confrontación directa 1:1 entre `docs/api/afinia-openapi-v1.yaml` y `app.url_ma
 | `POST` | `/api/v1/auth/refresh` | No | Renovación rotativa de access token. |
 | `POST` | `/api/v1/auth/logout` | Sí | Cierre de sesión y revocación del refresh token (`204 No Content`). |
 | `GET` | `/api/v1/auth/me` | Sí | Consulta datos básicos y estado del usuario autenticado. |
+| `POST` | `/api/v1/auth/forgot-password` | No | Solicitud anti-enumeración de restablecimiento de contraseña (`202 Accepted`). |
+| `POST` | `/api/v1/auth/reset-password` | No | Restablecimiento de contraseña con token de un solo uso y revocación de sesiones (`204 No Content`). |
+| `POST` | `/api/v1/account/deletion` | Sí | Eliminación segura de cuenta con reautenticación (`202 Accepted`). |
 
 #### Payload de Registro (`POST /api/v1/auth/register`):
 ```json
@@ -210,6 +213,17 @@ Confrontación directa 1:1 entre `docs/api/afinia-openapi-v1.yaml` y `app.url_ma
   "accept_privacy_version": "v1-draft"
 }
 ```
+
+#### Política de Eliminación, Anonimización y Conservación (`POST /api/v1/account/deletion`)
+
+El endpoint `POST /api/v1/account/deletion` exige sesión autenticada (`Bearer <access_token>`) y cuerpo JSON con `{"password": "<actual>", "confirm": true}`. Para respetar tanto la privacidad del usuario como las restricciones de integridad referencial (`ON DELETE RESTRICT`) de PostgreSQL, el sistema distingue cuatro categorías de tratamiento de datos:
+
+| Categoría | Entidades / Recursos Afectados | Tratamiento Aplicado |
+| :--- | :--- | :--- |
+| **1. Datos eliminados físicamente de inmediato en BD** | `profiles`, `profile_photos`, `discovery_preferences`, `analytic_questionnaire_answers`, `profile_interactions`, `email_verification_tokens`, `password_reset_tokens` | Borrado físico (`DELETE`) dentro de la transacción SQL. No quedan datos biográficos, preferencias, respuestas del cuestionario ni interacciones de descubrimiento. |
+| **2. Archivos multimedia físicos (`uploads/profile_photos`)** | Archivos de imagen asociados a `profile_photos.storage_key` | Tras confirmar el commit en PostgreSQL, cada `storage_key` se registra de forma durable en `.pending_deletions.json` antes de ejecutar `storage_adapter.delete_file(key)`. Si ocurre un fallo de E/S en el sistema de archivos, la fotografía **permanece inmediatamente inaccesible por API** (`404 NOT_FOUND` tanto por eliminación de `ProfilePhoto` como por bloqueo en `get_file_path`) y queda en cola para reintento idempotente mediante `storage_adapter.retry_pending_deletions()`. **No se afirma eliminación física completa mientras existan archivos pendientes en dicha cola.** |
+| **3. Datos anonimizados irreversiblemente** | `users`, `refresh_tokens`, `legal_consents.ip_address` | En `users`: `email` se reemplaza por `deleted+<uuid>@deleted.afinia.invalid` (liberando el correo original), `password_hash` se rota con entropía criptográfica (invalidando todo JWT anterior vía `pwd_fp`), `is_active=false`, `email_verified=false`, `lifecycle_status='deactivated'` y se sella `deleted_at` (UTC). En `refresh_tokens`: se revocan todos los tokens (`revoked_at=now`) y se limpian `ip_address=NULL` y `user_agent=NULL`. |
+| **4. Datos conservados en mensajes, denuncias y consentimientos** | `matches`, `messages`, `user_reports`, `user_blocks`, `legal_consents` | **Mensajes y matches:** Los `matches` abiertos se cierran lógicamente (`closed_at=now`, `closed_by_user_id=user.id`) y los registros de `messages` se conservan en BD por integridad referencial (`ON DELETE RESTRICT`), quedando inaccesibles por API (`404 NOT_FOUND`) para todos los participantes. **Denuncias y bloqueos (`user_reports` / `user_blocks`):** En PostgreSQL, `user_reports.reporter_user_id` y `user_reports.reported_user_id` son `NOT NULL` con regla `ON DELETE RESTRICT` (mientras que `resolved_by_user_id` es `NULLABLE` con `ON DELETE SET NULL`). Por ello, `POST /api/v1/account/deletion` **no** ejecuta `DELETE` sobre `users`, sino que anonimiza el registro in-place (`deleted+<uuid>@deleted.afinia.invalid`, `is_active=false`, `lifecycle_status='deactivated'`, `deleted_at=now`), conservando los UUIDs referenciales en `user_reports` para auditoría y moderación administrativa (BE-10) sin exponer PII. **Consentimientos legales:** Las filas de `legal_consents` se conservan por `ON DELETE RESTRICT` con `ip_address=NULL` como evidencia regulatoria vinculada al UUID anonimizado. |
 
 ---
 
@@ -367,30 +381,28 @@ Cualquier intento de enviar o consultar mensajes en un match deshecho o bloquead
 
 ---
 
-### 4.8. Legal
+### 4.8. Legal, Notificaciones, Moderación Administrativa y Cuestionario Analítico
 | Método | Ruta Canónica | Auth | Descripción |
 | :--- | :--- | :---: | :--- |
 | `GET` | `/api/v1/legal/current` | No | Retorna versiones y enlaces vigentes de Términos y Privacidad (`200 OK`). |
+| `POST` | `/api/v1/legal/acceptances` | Sí | Registra la aceptación explícita e idempotente de las versiones legales vigentes (`200 OK`). |
+| `GET` | `/api/v1/notifications` | Sí | Consulta paginada por cursor de notificaciones propias (`new_match`, `new_message`) (`200 OK`). |
+| `POST` | `/api/v1/notifications/{notificationId}/read` | Sí | Marca como leída una notificación propia de forma idempotente (`204 No Content`). |
+| `GET` | `/api/v1/admin/reports` | Sí (`admin`) | Lista denuncias para moderación administrativa con paginación por cursor y sin exponer PII (`200 OK`). |
+| `POST` | `/api/v1/admin/reports/{reportId}/resolve` | Sí (`admin`) | Resuelve una denuncia (`dismiss` $\rightarrow$ `dismissed`, `warn`/`suspend` $\rightarrow$ `resolved`) bajo bloqueo `SELECT FOR UPDATE` (`200 OK`). **Nota de alcance MVP:** `action=warn` y `action=suspend` se registran como decisiones administrativas auditadas en `user_reports`; no ejecutan suspensión, bloqueo ni eliminación automática sobre la cuenta denunciada en `users`. |
+| `GET` | `/api/v1/questionnaire` | Sí | Retorna la definición canónica del cuestionario analítico de 16 preguntas (`draft-1`). |
+| `PUT` | `/api/v1/questionnaire/answers` | Sí | Guarda o actualiza atómicamente (UPSERT) las respuestas del cuestionario (`200 OK`). |
+| `GET` | `/api/v1/questionnaire/answers` | Sí | Consulta las respuestas persistidas del usuario autenticado (`200 OK`). |
 
 ---
 
-## 5. Endpoints Pendientes en el Contrato OpenAPI v1
+## 5. Estado de Paridad del Contrato OpenAPI v1 (41/41 Operaciones)
 
-Para evitar confusión en el desarrollo del frontend, las siguientes 11 operaciones del contrato OpenAPI v1 **NO** están implementadas aún en Flask y no deben ser invocadas:
+Las **41 operaciones** especificadas en `docs/api/afinia-openapi-v1.yaml` están completamente registradas, implementadas y certificadas en PostgreSQL QA bajo la revisión Alembic **`a7b3c9d1e5f2`** (`0` pendientes en `verify_api_contract.py`):
 
-| Método | Ruta OpenAPI | Prioridad | Tag | Motivo / Estado |
-| :--- | :--- | :---: | :--- | :--- |
-| `GET` | `/api/v1/questionnaire` | **P2** | Cuestionario | Cuestionario psicométrico de afinidad de 40 preguntas. |
-| `PUT` | `/api/v1/questionnaire/answers` | **P2** | Cuestionario | Guardado de respuestas a las preguntas de preferencias. |
-| `GET` | `/api/v1/questionnaire/answers` | **P2** | Cuestionario | Consulta de respuestas del usuario autenticado. |
-| `POST` | `/api/v1/legal/acceptances` | **P2** | Legal | Registro explícito tras actualización de versión legal. |
-| `POST` | `/api/v1/account/deletion` | **P1** | Seguridad | Eliminación definitiva de cuenta por el usuario. |
-| `GET` | `/api/v1/notifications` | **P2** | Notificaciones | Consulta de notificaciones diferidas. |
-| `POST` | `/api/v1/notifications/{notificationId}/read` | **P2** | Notificaciones | Marcado de lectura de notificación. |
-| `POST` | `/api/v1/auth/forgot-password` | **P1** | Autenticación | Solicitud de restablecimiento de contraseña vía email. |
-| `POST` | `/api/v1/auth/reset-password` | **P1** | Autenticación | Restablecimiento de contraseña con token. |
-| `GET` | `/api/v1/admin/reports` | **P1** | Moderación | Listado de reportes para panel administrativo interno. |
-| `POST` | `/api/v1/admin/reports/{reportId}/resolve` | **P1** | Moderación | Resolución de reporte administrativo. |
+- **41/41 operaciones** verificadas con persistencia real en PostgreSQL QA (`127.0.0.1:55433/afinia_qa_db`).
+- La tabla física `notifications` fue promovida formalmente a producción/QA mediante la migración autorizada `backend/migrations/versions/a7b3c9d1e5f2_user_notifications.py` y certificada end-to-end con emisión de eventos `new_match` y `new_message`, paginación por cursor HMAC SHA-256, lectura idempotente (`read_at`), aislamiento multi-inquilino y limpieza atómica en `POST /api/v1/account/deletion`.
+- En moderación administrativa (`/api/v1/admin/reports`), las acciones `action=warn` y `action=suspend` se registran formalmente como decisiones administrativas auditadas en `user_reports` sin ejecutar sanciones destructivas automáticas sobre la cuenta en `users`, preservando el principio de intervención supervisada del MVP.
 
 ---
 

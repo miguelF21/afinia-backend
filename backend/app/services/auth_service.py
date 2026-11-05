@@ -849,9 +849,13 @@ def request_account_deletion(current_user: User, data: dict) -> dict:
                 synchronize_session=False
             )
 
-            # 7. Eliminación de tokens de verificación de correo y recuperación de contraseña
+            # 7. Eliminación de tokens de verificación de correo, recuperación de contraseña y notificaciones
             EmailVerificationToken.query.filter_by(user_id=user_db.id).delete(synchronize_session=False)
             PasswordResetToken.query.filter_by(user_id=user_db.id).delete(synchronize_session=False)
+            from app.services.notification_service import notifications_table_exists
+            from app.models.notification import Notification
+            if notifications_table_exists():
+                Notification.query.filter_by(user_id=user_db.id).delete(synchronize_session=False)
 
             # 8. Limpieza de dirección IP en consentimientos legales (preservando fila por RESTRICT)
             LegalConsent.query.filter_by(user_id=user_db.id).update(
@@ -877,15 +881,50 @@ def request_account_deletion(current_user: User, data: dict) -> dict:
             current_app.logger.error(f"Error transaccional al eliminar cuenta {target_user_id}: {str(e)}")
             raise AuthError('INTERNAL_ERROR', 'Error interno al procesar la eliminación de la cuenta.', 500)
 
-        # 10. Eliminación física de archivos multimedia únicamente tras confirmar el commit en BD
+        # 10. Eliminación física de archivos multimedia únicamente tras confirmar el commit en BD.
+        # Primero se registran de forma durable en la cola persistente (.pending_deletions.json)
+        # para garantizar que ningún fallo de E/S posterior al commit pierda la operación.
         from app.services.storage_service import storage_adapter
         for key in storage_keys_to_delete:
             try:
-                storage_adapter.delete_file(key)
-            except Exception as storage_err:
-                current_app.logger.warning(
-                    f"Error al eliminar archivo físico {key} tras eliminación de cuenta {target_user_id}: {storage_err}"
+                storage_adapter.enqueue_pending_deletion(
+                    key,
+                    reason="account_deletion",
+                    context_id=target_user_id,
                 )
+            except Exception as enqueue_err:
+                current_app.logger.error(
+                    f"Error al registrar borrado pendiente para {key} (cuenta {target_user_id}): {enqueue_err}"
+                )
+
+        pending_physical_keys = []
+        for key in storage_keys_to_delete:
+            try:
+                deleted_ok = storage_adapter.delete_file(key)
+                if not deleted_ok:
+                    if not storage_adapter.has_pending_deletion(key):
+                        storage_adapter.mark_deletion_failed(
+                            key,
+                            error="storage_adapter.delete_file returned False",
+                            reason="account_deletion",
+                            context_id=target_user_id,
+                        )
+                    pending_physical_keys.append(key)
+            except Exception as storage_err:
+                storage_adapter.mark_deletion_failed(
+                    key,
+                    error=f"{type(storage_err).__name__}: {storage_err}",
+                    reason="account_deletion",
+                    context_id=target_user_id,
+                )
+                pending_physical_keys.append(key)
+
+        if pending_physical_keys:
+            current_app.logger.warning(
+                f"Cuenta {target_user_id} desactivada y anonimizada en BD (fotografías inaccesibles por API), "
+                f"pero la eliminación física en disco quedó PENDIENTE de reintento para "
+                f"{len(pending_physical_keys)} archivo(s): {pending_physical_keys}"
+            )
 
         return {
             'request_id': str(uuid.uuid4()),

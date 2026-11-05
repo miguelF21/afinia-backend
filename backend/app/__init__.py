@@ -44,11 +44,15 @@ def create_app(config_class=Config):
     from app.api.legal import bp as legal_bp
     app.register_blueprint(legal_bp, url_prefix='/api/v1/legal')
 
-    from app.api.users import bp as users_bp
+    from app.api.users import bp as users_bp, admin_bp
     app.register_blueprint(users_bp, url_prefix='/api/v1/users')
+    app.register_blueprint(admin_bp, url_prefix='/api/v1/admin')
 
     from app.api.questionnaire import bp as questionnaire_bp
     app.register_blueprint(questionnaire_bp, url_prefix='/api/v1/questionnaire')
+
+    from app.api.notifications import bp as notifications_bp
+    app.register_blueprint(notifications_bp, url_prefix='/api/v1/notifications')
 
     @app.route('/health', methods=['GET'])
     def health_check():

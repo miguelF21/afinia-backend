@@ -1,8 +1,11 @@
 import os
 import io
+import json
 import uuid
 import warnings
-from typing import Optional, Tuple
+import threading
+from datetime import datetime, timezone
+from typing import Optional, Tuple, Dict, Any, List
 from flask import current_app, request
 from PIL import Image, ImageOps, UnidentifiedImageError
 
@@ -17,15 +20,22 @@ class StorageError(Exception):
 class LocalStorageAdapter:
     """
     Adaptador de almacenamiento local seguro para QA y desarrollo.
-    Almacena archivos fuera de carpetas públicas y previene directory traversal.
+    Almacena archivos fuera de carpetas públicas, previene directory traversal
+    y gestiona una cola durable en disco (.pending_deletions.json) para registrar
+    y reintentar eliminaciones físicas que fallen por errores de E/S post-commit.
     """
+    PENDING_DELETIONS_FILENAME = ".pending_deletions.json"
+
     def __init__(self, base_folder: Optional[str] = None):
         self._base_folder = base_folder
+        self._lock = threading.RLock()
 
     @property
     def base_folder(self) -> str:
         if self._base_folder:
-            return self._base_folder
+            folder = os.path.abspath(self._base_folder)
+            os.makedirs(folder, exist_ok=True)
+            return folder
         try:
             configured = current_app.config.get('UPLOAD_FOLDER')
             if configured:
@@ -38,6 +48,166 @@ class LocalStorageAdapter:
 
         os.makedirs(folder, exist_ok=True)
         return folder
+
+    def _resolve_safe_target(self, storage_key: str) -> Optional[Tuple[str, str]]:
+        """
+        Normaliza y valida una storage_key contra directory traversal y nombres reservados.
+        Retorna (canonical_key, target_path) o None si la clave no es válida.
+        """
+        if not storage_key or not isinstance(storage_key, str):
+            return None
+
+        normalized_raw = storage_key.strip().replace("\\", "/")
+        if not normalized_raw:
+            return None
+
+        parts = [p for p in normalized_raw.split("/") if p]
+        if not parts or any(p in (".", "..") for p in parts):
+            return None
+
+        filename = parts[-1]
+        if not filename or filename.startswith(".") or filename == self.PENDING_DELETIONS_FILENAME:
+            return None
+
+        base = self.base_folder
+        target_path = os.path.normpath(os.path.join(base, filename))
+        try:
+            if os.path.commonpath([base, target_path]) != base or target_path == base:
+                return None
+        except ValueError:
+            return None
+
+        canonical_key = f"photos/{filename}"
+        return canonical_key, target_path
+
+    def _pending_manifest_path(self) -> str:
+        return os.path.join(self.base_folder, self.PENDING_DELETIONS_FILENAME)
+
+    def _load_pending_deletions_unlocked(self) -> Dict[str, Dict[str, Any]]:
+        manifest_path = self._pending_manifest_path()
+        if not os.path.exists(manifest_path):
+            return {}
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+
+    def _save_pending_deletions_unlocked(self, data: Dict[str, Dict[str, Any]]) -> None:
+        manifest_path = self._pending_manifest_path()
+        if not data:
+            if os.path.exists(manifest_path):
+                try:
+                    os.remove(manifest_path)
+                except OSError:
+                    pass
+            return
+
+        tmp_path = f"{manifest_path}.{uuid.uuid4().hex}.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2, sort_keys=True)
+        os.replace(tmp_path, manifest_path)
+
+    def enqueue_pending_deletion(
+        self,
+        storage_key: str,
+        reason: str = "account_deletion",
+        context_id: Optional[str] = None,
+    ) -> bool:
+        """
+        Registra de forma durable en disco una storage_key antes de ejecutar su borrado físico,
+        garantizando que la referencia no se pierda si ocurre un fallo de E/S tras el commit en BD.
+        """
+        resolved = self._resolve_safe_target(storage_key)
+        if not resolved:
+            return False
+        canonical_key, _ = resolved
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        with self._lock:
+            pending = self._load_pending_deletions_unlocked()
+            existing = pending.get(canonical_key)
+            if existing:
+                existing["reason"] = reason or existing.get("reason", "account_deletion")
+                if context_id is not None:
+                    existing["context_id"] = str(context_id)
+            else:
+                pending[canonical_key] = {
+                    "storage_key": canonical_key,
+                    "status": "pending_physical_deletion",
+                    "reason": reason,
+                    "context_id": str(context_id) if context_id is not None else None,
+                    "queued_at": now_iso,
+                    "last_attempt_at": None,
+                    "attempts": 0,
+                    "last_error": None,
+                }
+            self._save_pending_deletions_unlocked(pending)
+        return True
+
+    def mark_deletion_failed(
+        self,
+        storage_key: str,
+        error: str,
+        reason: str = "account_deletion",
+        context_id: Optional[str] = None,
+    ) -> bool:
+        """
+        Registra o actualiza un intento fallido de eliminación física en la cola persistente.
+        """
+        resolved = self._resolve_safe_target(storage_key)
+        if not resolved:
+            return False
+        canonical_key, _ = resolved
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        with self._lock:
+            pending = self._load_pending_deletions_unlocked()
+            entry = pending.get(canonical_key) or {
+                "storage_key": canonical_key,
+                "status": "pending_physical_deletion",
+                "reason": reason,
+                "context_id": str(context_id) if context_id is not None else None,
+                "queued_at": now_iso,
+                "attempts": 0,
+            }
+            entry["status"] = "pending_physical_deletion"
+            entry["attempts"] = int(entry.get("attempts", 0)) + 1
+            entry["last_attempt_at"] = now_iso
+            entry["last_error"] = str(error)
+            if reason:
+                entry["reason"] = reason
+            if context_id is not None:
+                entry["context_id"] = str(context_id)
+            pending[canonical_key] = entry
+            self._save_pending_deletions_unlocked(pending)
+        return True
+
+    def _clear_pending_deletion_unlocked(self, canonical_key: str) -> None:
+        pending = self._load_pending_deletions_unlocked()
+        if canonical_key in pending:
+            del pending[canonical_key]
+            self._save_pending_deletions_unlocked(pending)
+
+    def get_pending_deletions(self) -> Dict[str, Dict[str, Any]]:
+        """Retorna el diccionario de archivos físicos pendientes de eliminación."""
+        with self._lock:
+            return dict(self._load_pending_deletions_unlocked())
+
+    def has_pending_deletion(self, storage_key: str) -> bool:
+        """Indica si una storage_key se encuentra marcada como pendiente de eliminación física."""
+        resolved = self._resolve_safe_target(storage_key)
+        if not resolved:
+            return False
+        canonical_key, _ = resolved
+        with self._lock:
+            pending = self._load_pending_deletions_unlocked()
+            return canonical_key in pending
+
+    def _remove_physical_file(self, target_path: str) -> None:
+        """Punto único de remoción física en el sistema de archivos."""
+        os.remove(target_path)
 
     def save_file(self, clean_bytes: bytes, extension: str) -> str:
         """
@@ -60,36 +230,93 @@ class LocalStorageAdapter:
 
     def delete_file(self, storage_key: str) -> bool:
         """
-        Elimina físicamente el archivo asociado a la storage_key si existe.
+        Elimina físicamente de forma idempotente el archivo asociado a la storage_key:
+        - Si la clave es inválida o insegura, retorna False sin alterar ningún archivo.
+        - Si el archivo ya no existe físicamente en disco, limpia cualquier estado pendiente
+          y retorna True (idempotente).
+        - Si el archivo existe y se elimina exitosamente, limpia cualquier estado pendiente
+          y retorna True.
+        - Si ocurre un error de E/S al eliminar el archivo, lo registra/actualiza en la cola
+          persistente de eliminaciones pendientes (.pending_deletions.json) y retorna False.
         """
-        if not storage_key:
+        resolved = self._resolve_safe_target(storage_key)
+        if not resolved:
             return False
-            
-        # Extraer el nombre de archivo base
-        filename = os.path.basename(storage_key)
-        target_path = os.path.normpath(os.path.join(self.base_folder, filename))
-        
-        if not target_path.startswith(self.base_folder):
-            return False
-            
-        if os.path.exists(target_path):
+        canonical_key, target_path = resolved
+
+        with self._lock:
+            if os.path.exists(target_path):
+                try:
+                    self._remove_physical_file(target_path)
+                    self._clear_pending_deletion_unlocked(canonical_key)
+                    return True
+                except OSError as e:
+                    self.mark_deletion_failed(canonical_key, error=f"{type(e).__name__}: {e}")
+                    try:
+                        current_app.logger.error(
+                            f"Fallo de E/S al eliminar archivo físico {target_path}; "
+                            f"registrado en cola de eliminaciones pendientes ({canonical_key}): {e}"
+                        )
+                    except RuntimeError:
+                        pass
+                    return False
+
+            # Idempotencia: el archivo ya no existe en disco
+            self._clear_pending_deletion_unlocked(canonical_key)
+            return True
+
+    def retry_pending_deletions(self, max_items: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Reintenta las eliminaciones físicas pendientes registradas en .pending_deletions.json.
+        Retorna un resumen con claves 'attempted', 'resolved' y 'still_pending'.
+        """
+        with self._lock:
+            pending_snapshot = list(self._load_pending_deletions_unlocked().keys())
+
+        if max_items is not None and max_items >= 0:
+            pending_snapshot = pending_snapshot[:max_items]
+
+        resolved_keys: List[str] = []
+        still_pending_keys: List[str] = []
+
+        for canonical_key in pending_snapshot:
+            resolved_target = self._resolve_safe_target(canonical_key)
+            if not resolved_target:
+                with self._lock:
+                    self._clear_pending_deletion_unlocked(canonical_key)
+                continue
+
+            _, target_path = resolved_target
             try:
-                os.remove(target_path)
-                return True
-            except OSError as e:
-                current_app.logger.error(f"Error al eliminar archivo físico {target_path}: {e}")
-                return False
-        return False
+                ok = self.delete_file(canonical_key)
+                if ok and not os.path.exists(target_path):
+                    with self._lock:
+                        self._clear_pending_deletion_unlocked(canonical_key)
+                    resolved_keys.append(canonical_key)
+                else:
+                    if not self.has_pending_deletion(canonical_key):
+                        self.mark_deletion_failed(canonical_key, error="retry_pending_deletions: file still exists")
+                    still_pending_keys.append(canonical_key)
+            except Exception as exc:
+                self.mark_deletion_failed(canonical_key, error=f"{type(exc).__name__}: {exc}")
+                still_pending_keys.append(canonical_key)
+
+        return {
+            "attempted": len(pending_snapshot),
+            "resolved": resolved_keys,
+            "still_pending": still_pending_keys,
+        }
 
     def get_file_path(self, storage_key: str) -> Optional[str]:
         """
-        Retorna la ruta física segura del archivo si existe.
+        Retorna la ruta física segura del archivo si existe y NO está marcado como
+        pendiente de eliminación física.
         """
-        if not storage_key:
+        resolved = self._resolve_safe_target(storage_key)
+        if not resolved:
             return None
-        filename = os.path.basename(storage_key)
-        target_path = os.path.normpath(os.path.join(self.base_folder, filename))
-        if not target_path.startswith(self.base_folder):
+        canonical_key, target_path = resolved
+        if self.has_pending_deletion(canonical_key):
             return None
         if os.path.exists(target_path):
             return target_path

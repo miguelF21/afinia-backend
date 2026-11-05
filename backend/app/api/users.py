@@ -4,8 +4,8 @@ AFINIA — API de Usuarios Públicos (BE-03.1).
 Implementa las rutas públicas de usuarios bajo /api/v1/users conforme a OpenAPI v1.
 """
 
-from flask import Blueprint, request, current_app, Response
-from app.auth.middleware import token_required
+from flask import Blueprint, request, current_app, Response, jsonify
+from app.auth.middleware import token_required, admin_required
 from app.utils.errors import api_response, api_error
 from app.services.discovery_service import get_public_profile_by_user_id, DiscoveryError
 from app.services.block_service import (
@@ -16,10 +16,13 @@ from app.services.block_service import (
 )
 from app.services.report_service import (
     create_user_report,
+    list_moderation_reports,
+    resolve_moderation_report,
     ReportError
 )
 
 bp = Blueprint('users', __name__)
+admin_bp = Blueprint('admin', __name__)
 
 
 @bp.route('/me/blocks', methods=['GET'])
@@ -126,4 +129,57 @@ def report_user_endpoint(current_user, userId):
     except Exception as e:
         current_app.logger.error(f"Error inesperado en report_user_endpoint: {str(e)}")
         return api_error('INTERNAL_ERROR', 'Error interno al registrar el reporte.', 500)
+
+
+@admin_bp.route('/reports', methods=['GET'])
+@admin_required
+def list_admin_reports_endpoint(current_user):
+    """
+    GET /api/v1/admin/reports
+    Lista denuncias para moderación administrativa.
+    Exclusivo para rol 'admin' verificado en servidor.
+    """
+    try:
+        query_args = request.args.to_dict(flat=True)
+        items, next_cursor, has_more = list_moderation_reports(current_user, query_args=query_args)
+        return jsonify({
+            "data": {
+                "items": items
+            },
+            "meta": {
+                "next_cursor": next_cursor,
+                "has_more": has_more
+            }
+        }), 200
+    except ReportError as e:
+        return api_error(e.code, e.message, status_code=e.status_code, details=e.details)
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado en list_admin_reports_endpoint: {str(e)}")
+        return api_error('INTERNAL_ERROR', 'Error interno al listar denuncias de moderación.', 500)
+
+
+@admin_bp.route('/reports/<reportId>/resolve', methods=['POST'])
+@admin_required
+def resolve_admin_report_endpoint(current_user, reportId):
+    """
+    POST /api/v1/admin/reports/{reportId}/resolve
+    Resuelve una denuncia administrativa registrando actor, fecha y decisión.
+    Exclusivo para rol 'admin' verificado en servidor.
+    """
+    if not request.is_json:
+        return api_error('VALIDATION_ERROR', 'El cuerpo de la petición debe ser un objeto JSON válido.', 422)
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return api_error('VALIDATION_ERROR', 'El cuerpo de la petición debe ser un objeto JSON válido.', 422)
+
+    try:
+        result = resolve_moderation_report(current_user, reportId, payload)
+        return api_response(result, status_code=200)
+    except ReportError as e:
+        return api_error(e.code, e.message, status_code=e.status_code, details=e.details)
+    except Exception as e:
+        current_app.logger.error(f"Error inesperado en resolve_admin_report_endpoint: {str(e)}")
+        return api_error('INTERNAL_ERROR', 'Error interno al resolver la denuncia.', 500)
+
 

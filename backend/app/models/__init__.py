@@ -9,4 +9,5 @@ from .block import UserBlock
 from .report import UserReport
 from .legal import LegalConsent
 from .message import Message
+from .notification import Notification
 

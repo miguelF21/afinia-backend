@@ -41,6 +41,7 @@ class User(db.Model):
     reports_resolved = db.relationship('UserReport', foreign_keys='UserReport.resolved_by_user_id', back_populates='resolved_by')
     legal_consents = db.relationship('LegalConsent', back_populates='user')
     messages_sent = db.relationship('Message', back_populates='sender', passive_deletes=True)
+    notifications = db.relationship('Notification', back_populates='user', cascade='all, delete-orphan')
 
     @validates('email')
     def validate_and_normalize_email(self, key, value):

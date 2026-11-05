@@ -854,3 +854,113 @@ def test_17_isolation_between_users(client):
     assert len(items_u2) == 1
     assert items_u2[0]["id"] == match_u2_u3
 
+
+def test_18_photo_io_failure_post_commit_pending_queue_and_retry(client, monkeypatch, caplog):
+    """
+    18. Fallo controlado de E/S al borrar fotografía tras el commit de eliminación de cuenta:
+    - El archivo físico sigue en disco inicialmente pero se registra en la cola durable (.pending_deletions.json).
+    - No se afirma eliminación física completa mientras el archivo esté pendiente.
+    - La fotografía permanece inaccesible por API (404 NOT_FOUND) y por get_file_path (None) durante el fallo.
+    - El mecanismo retry_pending_deletions() reintenta y completa la eliminación física cuando cesa el fallo de E/S.
+    """
+    u1 = _create_complete_user(client, "u1.iofail@example.test", first_name="FalloIO")
+    u2 = _create_complete_user(client, "u2.viewerio@example.test", first_name="LectorIO")
+
+    photo_id = u1["photo_id"]
+    storage_key = u1["storage_key"]
+    file_path = u1["file_path"]
+    assert os.path.exists(file_path)
+
+    original_remove = storage_adapter._remove_physical_file
+
+    def _failing_io_remove(target_path: str):
+        raise PermissionError(f"Simulated I/O lock on {target_path}")
+
+    monkeypatch.setattr(storage_adapter, "_remove_physical_file", _failing_io_remove)
+
+    del_res = client.post(
+        "/api/v1/account/deletion",
+        json={"password": u1["password"], "confirm": True},
+        headers=u1["headers"],
+    )
+    assert del_res.status_code == 202
+
+    # 1. El archivo físico aún existe en disco debido al fallo simulado de E/S
+    assert os.path.exists(file_path)
+
+    # 2. La operación NO se perdió: está persistida en la cola durable de eliminaciones pendientes
+    assert storage_adapter.has_pending_deletion(storage_key) is True
+    pending = storage_adapter.get_pending_deletions()
+    assert storage_key in pending
+    entry = pending[storage_key]
+    assert entry["status"] == "pending_physical_deletion"
+    assert entry["reason"] == "account_deletion"
+    assert entry["context_id"] == u1["user_id"]
+    assert entry["attempts"] >= 1
+    assert "PermissionError" in entry["last_error"]
+
+    # 3. Durante el fallo/reintento, la fotografía es inaccesible por API (404) y por get_file_path (None)
+    assert storage_adapter.get_file_path(storage_key) is None
+    media_res = client.get(f"/api/v1/profile/photos/media/{photo_id}", headers=u2["headers"])
+    assert media_res.status_code == 404
+    assert media_res.get_json()["error"]["code"] == "NOT_FOUND"
+
+    # 4. Si el fallo de E/S persiste al reintentar, el archivo continúa en still_pending e incrementa attempts
+    retry_fail = storage_adapter.retry_pending_deletions()
+    assert retry_fail["attempted"] == 1
+    assert retry_fail["resolved"] == []
+    assert storage_key in retry_fail["still_pending"]
+    assert os.path.exists(file_path)
+    assert storage_adapter.get_pending_deletions()[storage_key]["attempts"] >= 2
+
+    # 5. Al restablecerse la E/S normal, retry_pending_deletions() elimina físicamente el archivo y limpia la cola
+    monkeypatch.setattr(storage_adapter, "_remove_physical_file", original_remove)
+    retry_ok = storage_adapter.retry_pending_deletions()
+    assert retry_ok["attempted"] == 1
+    assert storage_key in retry_ok["resolved"]
+    assert retry_ok["still_pending"] == []
+    assert not os.path.exists(file_path)
+    assert storage_adapter.has_pending_deletion(storage_key) is False
+    assert storage_adapter.get_pending_deletions() == {}
+
+    # 6. La fotografía de u2 permanece intacta
+    assert os.path.exists(u2["file_path"])
+    media_u2 = client.get(f"/api/v1/profile/photos/media/{u2['photo_id']}", headers=u2["headers"])
+    assert media_u2.status_code == 200
+
+
+def test_19_idempotent_file_deletion_and_neighbor_file_safety(client):
+    """
+    19. Idempotencia del borrado físico de fotografías:
+    - Repetir delete_file o retry_pending_deletions sobre un archivo ya eliminado retorna True sin errores.
+    - No afecta otros archivos en el directorio ni permite borrar archivos de control o fuera de base_folder.
+    """
+    u1 = _create_complete_user(client, "u1.idem@example.test", first_name="Idem1")
+    u2 = _create_complete_user(client, "u2.idem@example.test", first_name="Idem2")
+
+    assert os.path.exists(u1["file_path"])
+    assert os.path.exists(u2["file_path"])
+
+    # Primera eliminación física
+    assert storage_adapter.delete_file(u1["storage_key"]) is True
+    assert not os.path.exists(u1["file_path"])
+
+    # Eliminaciones repetidas sobre la misma clave ya inexistente son idempotentes y seguras
+    for _ in range(3):
+        assert storage_adapter.delete_file(u1["storage_key"]) is True
+
+    # Si se encola manualmente una clave cuyo archivo físico ya fue eliminado, retry la resuelve limpiamente
+    storage_adapter.enqueue_pending_deletion(u1["storage_key"], reason="account_deletion", context_id=u1["user_id"])
+    retry_res = storage_adapter.retry_pending_deletions()
+    assert u1["storage_key"] in retry_res["resolved"]
+    assert retry_res["still_pending"] == []
+    assert storage_adapter.get_pending_deletions() == {}
+
+    # Claves vacías, con directory traversal o que apunten al manifiesto interno son rechazadas (False)
+    for invalid_key in ["", "   ", "../secret.txt", "photos/../../secret.txt", ".pending_deletions.json", "photos/.pending_deletions.json"]:
+        assert storage_adapter.delete_file(invalid_key) is False
+
+    # El archivo vecino de u2 sigue intacto en disco
+    assert os.path.exists(u2["file_path"])
+
+
