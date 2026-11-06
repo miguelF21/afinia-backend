@@ -1,59 +1,96 @@
-<ion-header class="ion-no-border">
-  <ion-toolbar>
-    <ion-title class="ion-text-center">Descubrir</ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="logout()" title="Cerrar sesión">
-        <ion-icon name="log-out-outline" color="medium"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content class="ion-padding dashboard-content">
-  <!-- Tarjeta de Perfil -->
-  <div class="swipe-container" *ngIf="currentProfile; else noMoreProfiles">
-    <ion-card class="profile-card">
-      <div class="image-placeholder">
-        <ion-icon name="person-outline" class="placeholder-icon"></ion-icon>
-      </div>
-      
-      <ion-card-header>
-        <ion-card-title>
-          {{ currentProfile.first_name }}, {{ currentProfile.age }}
-        </ion-card-title>
-        <ion-card-subtitle>
-          <ion-icon name="location-outline"></ion-icon> {{ currentProfile.city }}
-        </ion-card-subtitle>
-      </ion-card-header>
-
-      <ion-card-content>
-        <p class="bio-text">{{ currentProfile.bio }}</p>
-        
-        <!-- ML Afinidad Tag -->
-        <div class="affinity-badge" *ngIf="currentProfile.affinityScore">
-          <ion-icon name="sparkles"></ion-icon>
-          Afinidad predictiva: {{ currentProfile.affinityScore }}%
-        </div>
-      </ion-card-content>
-    </ion-card>
-
-    <!-- Botones de Acción -->
-    <div class="action-buttons ion-margin-top">
-      <ion-fab-button color="danger" class="pass-btn" (click)="onPass()">
-        <ion-icon name="close-outline"></ion-icon>
-      </ion-fab-button>
-      
-      <ion-fab-button color="success" class="like-btn" (click)="onLike()">
-        <ion-icon name="heart-outline"></ion-icon>
-      </ion-fab-button>
+<section class="disc">
+  <header class="head rise">
+    <div>
+      <h1 class="page-title">Descubre personas</h1>
+      <p class="page-sub">Encuentra a alguien especial según tus afinidades</p>
     </div>
+    <div class="filter">
+      <button class="filter-btn" [class.on]="filtersActive" (click)="filtersOpen = !filtersOpen" [attr.aria-expanded]="filtersOpen">
+        <ion-icon name="funnel-outline"></ion-icon> Filtros
+        <ion-icon name="chevron-down" class="chev" [class.up]="filtersOpen"></ion-icon>
+      </button>
+      <div class="filter-pop" *ngIf="filtersOpen">
+        <span class="field-label">Afinidad mínima</span>
+        <div class="chips">
+          <button *ngFor="let t of thresholds" class="chip" [class.is-on]="data.minAffinity === t" (click)="setMin(t)">{{ t ? t + '%+' : 'Todas' }}</button>
+        </div>
+        <label class="switch-row">
+          <span>Solo personas en línea</span>
+          <ion-toggle [(ngModel)]="data.onlyOnline" name="onlyOnline"></ion-toggle>
+        </label>
+        <button class="btn btn-ghost btn-sm btn-block" (click)="resetFilters()">Restablecer</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="stage rise-2" *ngIf="currentProfile as p; else empty">
+    <!-- Tarjeta de fondo -->
+    <article class="card-p back" *ngIf="nextProfile as n" [class.lift]="leaving">
+      <app-photo [tone]="n.tone" [name]="n.name"></app-photo>
+      <app-affinity-badge class="aff" [value]="n.affinity"></app-affinity-badge>
+      <div class="shade"></div>
+      <div class="info"><h3>{{ n.name }}, {{ n.age }}</h3><p><ion-icon name="location"></ion-icon>{{ n.city }}</p></div>
+    </article>
+
+    <!-- Tarjeta principal -->
+    <article class="card-p front" [class.go-like]="leaving === 'like'" [class.go-pass]="leaving === 'pass'" [class.open]="expanded" (click)="expanded = !expanded" tabindex="0" (keydown.enter)="expanded = !expanded" [attr.aria-label]="'Perfil de ' + p.name">
+      <app-photo [tone]="p.tone" [name]="p.name"></app-photo>
+      <span class="online" *ngIf="p.online"><i></i>En línea</span>
+      <app-affinity-badge class="aff" [value]="p.affinity"></app-affinity-badge>
+      <span class="stamp like">ME GUSTA</span><span class="stamp nope">PASO</span>
+      <div class="shade"></div>
+      <div class="info">
+        <h3>{{ p.name }}, {{ p.age }}</h3>
+        <p><ion-icon name="location"></ion-icon>{{ p.city }}</p>
+        <div class="tags"><span class="chip glass" *ngFor="let t of p.interests.slice(0, 3)">{{ t }}</span><span class="chip glass" *ngIf="p.interests.length > 3">+{{ p.interests.length - 3 }}</span></div>
+        <div class="more">
+          <p class="bio">{{ p.bio }}</p>
+          <div class="tags" *ngIf="p.interests.length > 3"><span class="chip glass" *ngFor="let t of p.interests.slice(3)">{{ t }}</span></div>
+        </div>
+      </div>
+      <span class="hint"><ion-icon [name]="expanded ? 'chevron-down' : 'chevron-up'"></ion-icon></span>
+    </article>
+
+    <div class="actions">
+      <button class="act pass" (click)="onPass()" aria-label="Pasar"><ion-icon name="close"></ion-icon></button>
+      <button class="act like" (click)="onLike()" aria-label="Me gusta"><ion-icon name="heart"></ion-icon></button>
+      <button class="act star" [class.on]="data.favorites.has(p.id)" (click)="onFavorite()" aria-label="Favorito"><ion-icon [name]="data.favorites.has(p.id) ? 'star' : 'star-outline'"></ion-icon></button>
+    </div>
+
+    <div class="dots" aria-hidden="true"><i *ngFor="let d of dots" [class.on]="d === 0"></i></div>
   </div>
 
-  <ng-template #noMoreProfiles>
-    <div class="empty-state ion-text-center">
-      <ion-icon name="search-outline" color="medium"></ion-icon>
-      <h2>No hay más perfiles</h2>
-      <p>Vuelve más tarde para descubrir nuevas personas compatibles contigo.</p>
+  <ng-template #empty>
+    <div class="empty card rise-2">
+      <span class="emp-ico"><ion-icon name="sparkles"></ion-icon></span>
+      <h2>{{ filtersActive || data.query ? 'Nadie coincide con tu búsqueda' : 'Has visto todos los perfiles' }}</h2>
+      <p>{{ filtersActive || data.query ? 'Prueba con otros filtros para ver más personas compatibles.' : 'Vuelve más tarde para descubrir nuevas personas compatibles contigo.' }}</p>
+      <button class="btn btn-primary" *ngIf="filtersActive || data.query" (click)="resetFilters()">Quitar filtros</button>
+      <a class="btn btn-soft" routerLink="/matches" *ngIf="!(filtersActive || data.query)"><ion-icon name="heart"></ion-icon>Ver mis matches</a>
     </div>
   </ng-template>
-</ion-content>
+
+  <div class="banner rise-3" *ngIf="currentProfile as p">
+    <span class="star-ic"><ion-icon name="star"></ion-icon></span>
+    <div class="b-txt"><b>Tu afinidad con {{ p.name }} es del {{ p.affinity }}%</b><span>{{ p.affinity >= 85 ? '¡Una conexión increíble!' : 'Tienen cosas en común por descubrir' }}</span></div>
+    <button class="btn btn-primary btn-sm" (click)="onLike()">Me gusta <ion-icon name="arrow-forward"></ion-icon></button>
+  </div>
+</section>
+
+<!-- ───── ¡Es un match! ───── -->
+<div class="match" *ngIf="matched as m" role="dialog" aria-modal="true" aria-label="Es un match">
+  <span class="cf c1"></span><span class="cf c2"></span><span class="cf c3"></span><span class="cf c4"></span><span class="cf c5"></span>
+  <ion-icon class="bgh h1" name="heart"></ion-icon><ion-icon class="bgh h2" name="heart"></ion-icon>
+  <div class="m-body">
+    <h2>¡Es un match!</h2>
+    <p>Ahora pueden empezar a conocerse</p>
+    <div class="duo">
+      <span class="face l"><app-avatar [name]="user.displayName" [tone]="0" [size]="132"></app-avatar></span>
+      <span class="heart"><ion-icon name="heart"></ion-icon></span>
+      <span class="face r"><app-avatar [name]="m.name" [tone]="m.tone" [size]="132"></app-avatar></span>
+    </div>
+    <p class="aff-line"><b>{{ m.affinity }}%</b> de afinidad con {{ m.name }}</p>
+    <button class="btn btn-primary btn-block" (click)="goChat()">Enviar mensaje</button>
+    <button class="btn btn-outline btn-block light" (click)="matched = null">Seguir explorando</button>
+  </div>
+</div>

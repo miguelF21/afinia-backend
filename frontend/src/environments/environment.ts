@@ -2,16 +2,17 @@
 // `ng build` replaces `environment.ts` with `environment.prod.ts`.
 // The list of file replacements can be found in `angular.json`.
 
-export const environment = {
-  production: false,
-  apiUrl: 'http://localhost:5000/api/v1'
+const getApiUrl = (defaultUrl: string): string => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const override = window.localStorage.getItem('AFINIA_API_URL');
+    if (override) return override;
+  }
+  return defaultUrl;
 };
 
-/*
- * For easier debugging in development mode, you can import the following file
- * to ignore zone related error stack frames such as `zone.run`, `zoneDelegate.invokeTask`.
- *
- * This import should be commented out in production mode because it will have a negative impact
- * on performance if an error is thrown.
- */
-// import 'zone.js/plugins/zone-error';  // Included with Angular CLI.
+export const environment = {
+  production: false,
+  apiUrl: getApiUrl('https://afinia-backend.onrender.com/api/v1'),
+  legalTermsVersion: 'v1-draft',
+  legalPrivacyVersion: 'v1-draft'
+};

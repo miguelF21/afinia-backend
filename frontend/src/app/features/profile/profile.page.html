@@ -1,0 +1,75 @@
+<section class="page">
+  <!-- Cabecera -->
+  <div class="hero card rise">
+    <div class="cover"><span class="o o1"></span><span class="o o2"></span><ion-icon class="h h1" name="heart"></ion-icon><ion-icon class="h h2" name="heart"></ion-icon></div>
+    <div class="hero-in">
+      <app-avatar class="av" [name]="user.displayName" [tone]="0" [size]="124" [online]="true"></app-avatar>
+      <div class="id">
+        <h1>{{ user.displayName }}<span *ngIf="p.age">, {{ p.age }}</span></h1>
+        <p class="handle">{{ user.handle }}</p>
+        <p class="loc" *ngIf="p.city"><ion-icon name="location"></ion-icon>{{ p.city }}</p>
+      </div>
+      <div class="hero-actions">
+        <button class="btn btn-primary" *ngIf="!editing" (click)="edit()"><ion-icon name="create-outline"></ion-icon>Editar perfil</button>
+        <ng-container *ngIf="editing">
+          <button class="btn btn-ghost" (click)="cancel()">Cancelar</button>
+          <button class="btn btn-primary" (click)="save()"><ion-icon name="checkmark"></ion-icon>Guardar</button>
+        </ng-container>
+      </div>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div class="col">
+      <!-- Afinidad promedio -->
+      <div class="aff-card rise-2">
+        <h2>Tu afinidad promedio</h2>
+        <div class="aff-body">
+          <app-affinity-ring [value]="data.averageAffinity" [size]="112" track="rgba(255,255,255,.28)" style="color:#fff"></app-affinity-ring>
+          <div><b>{{ data.averageAffinity >= 80 ? '¡Muy bien!' : '¡Sigue así!' }}</b><p>{{ affinityMsg }}</p></div>
+        </div>
+        <div class="stats">
+          <div><b>{{ data.matches.length }}</b><span>Matches</span></div>
+          <div><b>{{ data.likesSent }}</b><span>Me gusta</span></div>
+          <div><b>{{ data.favorites.size }}</b><span>Favoritos</span></div>
+        </div>
+      </div>
+
+      <div class="card box rise-3">
+        <div class="box-head"><h2>Perfil completo</h2><b>{{ completion }}%</b></div>
+        <div class="bar"><i [style.width.%]="completion"></i></div>
+        <p class="muted">Un perfil completo mejora tus coincidencias.</p>
+      </div>
+    </div>
+
+    <div class="col wide">
+      <div class="card box rise-2">
+        <h2>Sobre mí</h2>
+        <p class="bio" *ngIf="!editing">{{ p.bio || 'Aún no has escrito nada sobre ti. Cuéntales a los demás qué te hace especial.' }}</p>
+        <div class="field-box area" *ngIf="editing"><textarea [(ngModel)]="draftBio" name="bio" rows="4" maxlength="300" placeholder="Cuéntales a los demás qué te hace especial…"></textarea></div>
+        <small class="count" *ngIf="editing">{{ draftBio.length }}/300</small>
+      </div>
+
+      <div class="card box rise-3">
+        <div class="box-head"><h2>Mis gustos e intereses</h2><span class="muted" *ngIf="editing">Elige hasta 8</span></div>
+        <div class="chips" *ngIf="!editing"><span class="chip pink" *ngFor="let t of interests">{{ t }}</span></div>
+        <div class="chips" *ngIf="editing"><button class="chip" type="button" *ngFor="let t of catalog" [class.is-on]="draftInterests.includes(t)" (click)="toggle(t)">{{ t }}</button></div>
+      </div>
+
+      <div class="card box rise-3">
+        <h2>Mi personalidad</h2>
+        <div class="meters">
+          <div><span>Extroversión</span><div class="bar"><i [style.width.%]="a.intro_extro * 20"></i></div><b>{{ a.intro_extro }}/5</b></div>
+          <div><span>Importancia de hobbies</span><div class="bar"><i [style.width.%]="a.hobbies * 20"></i></div><b>{{ a.hobbies }}/5</b></div>
+        </div>
+        <p class="goal" *ngIf="a.target"><ion-icon name="sparkles"></ion-icon>Busco: {{ a.target }}</p>
+      </div>
+
+      <div class="links card rise-3">
+        <a routerLink="/settings"><ion-icon name="settings-outline"></ion-icon>Configuración<ion-icon name="chevron-forward" class="go"></ion-icon></a>
+        <a routerLink="/settings" fragment="privacidad"><ion-icon name="lock-closed-outline"></ion-icon>Privacidad y seguridad<ion-icon name="chevron-forward" class="go"></ion-icon></a>
+        <button (click)="logout()"><ion-icon name="log-out-outline"></ion-icon>Cerrar sesión</button>
+      </div>
+    </div>
+  </div>
+</section>

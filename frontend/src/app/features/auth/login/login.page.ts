@@ -1,44 +1,64 @@
 import { Component } from '@angular/core';
 import { Router } from '@angular/router';
-import { AlertController, LoadingController } from '@ionic/angular';
+import { ToastController } from '@ionic/angular';
 import { AuthService } from '../../../core/services/auth.service';
+import { UserStateService } from '../../../core/user-state.service';
 
 @Component({
   selector: 'app-login',
   templateUrl: './login.page.html',
   styleUrls: ['./login.page.scss'],
+  standalone: false,
 })
 export class LoginPage {
   email = '';
   password = '';
+  showPassword = false;
+  loading = false;
+  errorMessage = '';
 
   constructor(
-    private auth: AuthService,
     private router: Router,
-    private loadingCtrl: LoadingController,
-    private alertCtrl: AlertController
-  ) {}
+    private user: UserStateService,
+    private auth: AuthService,
+    private toastController: ToastController
+  ) { }
 
-  async onLogin() {
-    if (!this.email || !this.password) return;
+  get valid(): boolean { return /^\S+@\S+\.\S+$/.test(this.email) && this.password.length > 0; }
 
-    const loading = await this.loadingCtrl.create({ message: 'Iniciando sesión...' });
-    await loading.present();
+  async showError(message: string) {
+    const toast = await this.toastController.create({
+      message,
+      duration: 3500,
+      color: 'danger',
+      position: 'bottom',
+    });
+    await toast.present();
+  }
+
+  onLogin() {
+    if (!this.valid || this.loading) return;
+    this.loading = true;
+    this.errorMessage = '';
 
     this.auth.login(this.email, this.password).subscribe({
-      next: async () => {
-        await loading.dismiss();
-        this.router.navigate(['/dashboard']);
+      next: (res) => {
+        this.loading = false;
+        this.user.profile.email = this.email;
+        this.user.save();
+
+        if (res.data?.user?.onboarding_complete === false) {
+          this.router.navigate(['/onboarding']);
+        } else {
+          this.router.navigate(['/dashboard']);
+        }
       },
-      error: async () => {
-        await loading.dismiss();
-        const alert = await this.alertCtrl.create({
-          header: 'Error',
-          message: 'Credenciales incorrectas.',
-          buttons: ['OK']
-        });
-        await alert.present();
-      }
+      error: async (err) => {
+        this.loading = false;
+        const msg = err.error?.error?.message || 'Error al iniciar sesión. Verifica tus credenciales.';
+        this.errorMessage = msg;
+        await this.showError(msg);
+      },
     });
   }
 }

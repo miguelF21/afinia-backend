@@ -1,0 +1,57 @@
+<section class="page">
+  <header class="head rise">
+    <div><h1 class="page-title">Configuración</h1><p class="page-sub">Personaliza tu experiencia en AFINIA</p></div>
+    <span class="saved" [class.show]="saved"><ion-icon name="checkmark-circle"></ion-icon>Guardado</span>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section class="card sec rise-2">
+        <div class="sec-head"><span class="ic"><ion-icon name="options-outline"></ion-icon></span><h2>Descubrimiento</h2></div>
+        <div class="range">
+          <div class="r-top"><span>Rango de edad</span><b>{{ s.ageMin }} – {{ s.ageMax }} años</b></div>
+          <ion-range [dualKnobs]="true" [min]="18" [max]="60" [pin]="true" [value]="{ lower: s.ageMin, upper: s.ageMax }" (ionKnobMoveEnd)="setAge($event)" aria-label="Rango de edad"></ion-range>
+        </div>
+        <div class="range">
+          <div class="r-top"><span>Distancia máxima</span><b>{{ s.distanceKm }} km</b></div>
+          <ion-range [min]="1" [max]="100" [pin]="true" [value]="s.distanceKm" (ionKnobMoveEnd)="setDistance($event)" aria-label="Distancia máxima"></ion-range>
+        </div>
+      </section>
+
+      <section class="card sec rise-3">
+        <div class="sec-head"><span class="ic"><ion-icon name="notifications-outline"></ion-icon></span><h2>Notificaciones</h2></div>
+        <label class="row" *ngFor="let t of notifications">
+          <ion-icon [name]="t.icon"></ion-icon>
+          <span class="tx"><b>{{ t.title }}</b><small>{{ t.desc }}</small></span>
+          <ion-toggle [(ngModel)]="s[t.key]" [name]="t.key" (ionChange)="change()" [attr.aria-label]="t.title"></ion-toggle>
+        </label>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="card sec rise-2" id="privacidad">
+        <div class="sec-head"><span class="ic"><ion-icon name="lock-closed-outline"></ion-icon></span><h2>Privacidad y seguridad</h2></div>
+        <label class="row" *ngFor="let t of privacy">
+          <ion-icon [name]="t.icon"></ion-icon>
+          <span class="tx"><b>{{ t.title }}</b><small>{{ t.desc }}</small></span>
+          <ion-toggle [(ngModel)]="s[t.key]" [name]="t.key" (ionChange)="change()" [attr.aria-label]="t.title"></ion-toggle>
+        </label>
+      </section>
+
+      <section class="card sec rise-3">
+        <div class="sec-head"><span class="ic"><ion-icon name="help-circle-outline"></ion-icon></span><h2>Ayuda y soporte</h2></div>
+        <div class="faq" *ngFor="let f of faq; let i = index" [class.open]="openFaq === i">
+          <button (click)="openFaq = openFaq === i ? -1 : i" [attr.aria-expanded]="openFaq === i">{{ f.q }}<ion-icon name="chevron-down"></ion-icon></button>
+          <p>{{ f.a }}</p>
+        </div>
+      </section>
+
+      <section class="card sec account rise-3">
+        <div class="sec-head"><span class="ic"><ion-icon name="person-circle-outline"></ion-icon></span><h2>Cuenta</h2></div>
+        <p class="mail" *ngIf="user.profile.email"><ion-icon name="mail-outline"></ion-icon>{{ user.profile.email }}</p>
+        <button class="btn btn-outline btn-block" (click)="logout()"><ion-icon name="log-out-outline"></ion-icon>Cerrar sesión</button>
+      </section>
+    </div>
+  </div>
+  <p class="note">Las preferencias se guardan en este dispositivo.</p>
+</section>

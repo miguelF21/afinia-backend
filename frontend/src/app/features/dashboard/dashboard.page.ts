@@ -1,94 +1,69 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { ToastController } from '@ionic/angular';
-import { ApiService } from '../../core/services/api.service';
-import { AuthService } from '../../core/services/auth.service';
-
-interface Candidate {
-  user_id: string;
-  first_name: string;
-  age: number;
-  city: string;
-  bio: string;
-  affinityScore?: number;
-}
+import { DemoDataService } from '../../core/demo-data.service';
+import { Person } from '../../core/models';
+import { UserStateService } from '../../core/user-state.service';
 
 @Component({
   selector: 'app-dashboard',
   templateUrl: './dashboard.page.html',
   styleUrls: ['./dashboard.page.scss'],
+  standalone: false,
 })
 export class DashboardPage implements OnInit {
-  profiles: Candidate[] = [];
-  currentProfile: Candidate | null = null;
-  loading = false;
+  leaving: 'like' | 'pass' | null = null;
+  expanded = false;
+  filtersOpen = false;
+  matched: Person | null = null;
+  readonly thresholds = [0, 70, 80, 90];
 
-  constructor(
-    private api: ApiService,
-    private auth: AuthService,
-    private router: Router,
-    private toastCtrl: ToastController
-  ) {}
+  constructor(public data: DemoDataService, public user: UserStateService, private router: Router) {}
 
   ngOnInit() {
-    this.loadPotentialMatches();
+    this.data.loadPotentialQueue();
   }
 
-  loadPotentialMatches() {
-    this.loading = true;
-    this.api.get<Candidate[]>('/match/potential').subscribe({
-      next: (data: Candidate[]) => {
-        this.profiles = data;
-        this.nextProfile();
-        this.loading = false;
-      },
-      error: () => {
-        this.loading = false;
+  ionViewWillEnter() {
+    this.data.loadPotentialQueue();
+  }
+
+  get profiles(): Person[] { return this.data.filteredQueue; }
+  get currentProfile(): Person | null { return this.profiles[0] ?? null; }
+  get nextProfile(): Person | null { return this.profiles[1] ?? null; }
+  get remaining(): number { return this.profiles.length; }
+  get dots(): number[] { return Array.from({ length: Math.min(this.remaining, 3) }, (_, i) => i); }
+  get filtersActive(): boolean { return this.data.minAffinity > 0 || this.data.onlyOnline; }
+
+  onLike() { this.act('like'); }
+  onPass() { this.act('pass'); }
+
+  onFavorite() {
+    if (this.currentProfile) this.data.toggleFavorite(this.currentProfile);
+  }
+
+  private act(kind: 'like' | 'pass') {
+    const p = this.currentProfile;
+    if (!p || this.leaving) return;
+    this.leaving = kind;
+    this.expanded = false;
+
+    setTimeout(() => {
+      if (kind === 'like') {
+        const m = this.data.like(p);
+        this.matched = m ? p : null;
+      } else {
+        this.data.pass(p);
       }
-    });
+      this.leaving = null;
+    }, 380);
   }
 
-  nextProfile() {
-    this.currentProfile = this.profiles.shift() ?? null;
-    // Si se agotaron, recargar del backend
-    if (!this.currentProfile && !this.loading) {
-      this.loadPotentialMatches();
-    }
+  goChat() {
+    const id = this.matched ? 'm-' + this.matched.id : null;
+    this.matched = null;
+    if (id) this.router.navigate(['/messages', id]);
   }
 
-  onLike() {
-    if (!this.currentProfile) return;
-    this.swipe(this.currentProfile.user_id, 'LIKE');
-  }
-
-  onPass() {
-    if (!this.currentProfile) return;
-    this.swipe(this.currentProfile.user_id, 'PASS');
-  }
-
-  private swipe(targetUserId: string, action: 'LIKE' | 'PASS') {
-    this.api.post<{ match: boolean }>('/match/swipe', { target_user_id: targetUserId, action }).subscribe({
-      next: async (res: { match: boolean }) => {
-        if (res.match) {
-          const toast = await this.toastCtrl.create({
-            message: `¡Es un match con ${this.currentProfile?.first_name}! 🎉`,
-            duration: 3000,
-            color: 'success',
-            position: 'top'
-          });
-          await toast.present();
-        }
-        this.nextProfile();
-      },
-      error: () => {
-        // En caso de error (ej. 409 duplicado), simplemente avanzar
-        this.nextProfile();
-      }
-    });
-  }
-
-  logout() {
-    this.auth.logout();
-    this.router.navigate(['/login']);
-  }
+  setMin(v: number) { this.data.minAffinity = v; }
+  resetFilters() { this.data.minAffinity = 0; this.data.onlyOnline = false; this.data.query = ''; }
 }

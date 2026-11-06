@@ -1,39 +1,68 @@
 import { Component } from '@angular/core';
 import { Router } from '@angular/router';
-import { AlertController, LoadingController } from '@ionic/angular';
+import { ToastController } from '@ionic/angular';
+import { INTEREST_CATALOG } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
+import { UserStateService } from '../../core/user-state.service';
 
 @Component({
   selector: 'app-onboarding',
   templateUrl: './onboarding.page.html',
   styleUrls: ['./onboarding.page.scss'],
+  standalone: false,
 })
 export class OnboardingPage {
   currentStep = 1;
-  totalSteps = 2;
+  totalSteps = 3;
+  steps = ['Sobre ti', 'Intereses', 'Personalidad'];
 
-  profile = {
+  genders = ['Masculino', 'Femenino', 'Otro'];
+  catalog = INTEREST_CATALOG;
+  interests: string[] = [];
+  loading = false;
+
+  goals = [
+    { value: 'seria', label: 'Relación seria y estable', icon: 'heart' },
+    { value: 'casual', label: 'Algo casual', icon: 'sparkles' },
+    { value: 'amistad', label: 'Amistad primero', icon: 'happy' },
+  ];
+  scale = [1, 2, 3, 4, 5];
+
+  profile: { first_name: string; gender: string; age: number | null; city: string } = {
     first_name: '',
-    birth_date: '',
     gender: '',
+    age: null,
     city: ''
   };
 
   analytics = {
     intro_extro: 3,
     hobbies: 3,
-    target: ''
+    target: 'amistad'
   };
 
   constructor(
-    private api: ApiService,
     private router: Router,
-    private loadingCtrl: LoadingController,
-    private alertCtrl: AlertController
-  ) {}
+    private user: UserStateService,
+    private api: ApiService,
+    private toastController: ToastController
+  ) {
+    this.profile.first_name = user.profile.first_name;
+    this.profile.city = user.profile.city;
+  }
+
+  get canContinue(): boolean {
+    if (this.currentStep === 1) return !!this.profile.first_name.trim() && !!this.profile.gender && !!this.profile.age && this.profile.age >= 18 && !!this.profile.city.trim();
+    if (this.currentStep === 2) return this.interests.length >= 3;
+    return !!this.analytics.target && !this.loading;
+  }
+
+  toggleInterest(t: string) {
+    this.interests = this.interests.includes(t) ? this.interests.filter(x => x !== t) : [...this.interests, t].slice(0, 8);
+  }
 
   nextStep() {
-    if (this.currentStep < this.totalSteps) {
+    if (this.currentStep < this.totalSteps && this.canContinue) {
       this.currentStep++;
     }
   }
@@ -44,60 +73,74 @@ export class OnboardingPage {
     }
   }
 
-  async finishOnboarding() {
-    if (!this.profile.first_name || !this.profile.birth_date || !this.profile.gender) {
-      const alert = await this.alertCtrl.create({
-        header: 'Faltan datos',
-        message: 'Completa nombre, fecha de nacimiento y género.',
-        buttons: ['OK']
-      });
-      await alert.present();
-      return;
-    }
+  async showToast(message: string, color: 'success' | 'danger' = 'success') {
+    const toast = await this.toastController.create({
+      message,
+      duration: 3500,
+      color,
+      position: 'bottom',
+    });
+    await toast.present();
+  }
 
-    const birthDate = new Date(this.profile.birth_date);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
+  finishOnboarding() {
+    if (!this.canContinue || this.loading) return;
+    this.loading = true;
 
-    if (age < 18) {
-      const alert = await this.alertCtrl.create({
-        header: 'Acceso denegado',
-        message: 'Debes ser mayor de 18 años para usar Afinia.',
-        buttons: ['OK']
-      });
-      await alert.present();
-      return;
-    }
+    const currentYear = new Date().getFullYear();
+    const birthYear = currentYear - (this.profile.age || 22);
+    const birthDate = `${birthYear}-06-15`;
 
-    const loading = await this.loadingCtrl.create({ message: 'Guardando perfil...' });
-    await loading.present();
+    let mappedGender = 'otro';
+    const gLower = this.profile.gender.toLowerCase();
+    if (gLower.includes('masculino')) mappedGender = 'masculino';
+    else if (gLower.includes('femenino')) mappedGender = 'femenino';
 
-    this.api.post('/profile/', this.profile).subscribe({
+    const profilePayload = {
+      first_name: this.profile.first_name.trim(),
+      birth_date: birthDate,
+      gender: mappedGender,
+      city: this.profile.city.trim(),
+      bio: `Intereses: ${this.interests.join(', ')}`,
+    };
+
+    // 1. Guardar perfil real en la base de datos
+    this.api.post('/profile', profilePayload).subscribe({
       next: () => {
-        this.api.post('/analytics/answers', this.analytics).subscribe({
-          next: async () => {
-            await loading.dismiss();
+        // 2. Guardar preferencias de búsqueda
+        const prefPayload = {
+          interested_in_genders: ['masculino', 'femenino', 'otro'],
+          min_age: Math.max(18, (this.profile.age || 22) - 5),
+          max_age: Math.min(80, (this.profile.age || 22) + 10),
+          target_relationship_type: this.analytics.target || 'amistad',
+        };
+
+        this.api.put('/profile/discovery-preferences', prefPayload).subscribe({
+          next: () => {
+            this.loading = false;
+            Object.assign(this.user.profile, this.profile, { interests: this.interests });
+            Object.assign(this.user.analytics, this.analytics);
+            this.user.save();
+            this.showToast('¡Perfil configurado con éxito!');
             this.router.navigate(['/dashboard']);
           },
-          error: async () => {
-            // Las respuestas analíticas son opcionales; ir al dashboard de todos modos
-            await loading.dismiss();
+          error: (err) => {
+            this.loading = false;
+            // Si el perfil ya se creó, permitir avanzar al dashboard
+            this.user.save();
             this.router.navigate(['/dashboard']);
           }
         });
       },
-      error: async () => {
-        await loading.dismiss();
-        const alert = await this.alertCtrl.create({
-          header: 'Error',
-          message: 'No se pudo guardar el perfil. Intenta de nuevo.',
-          buttons: ['OK']
-        });
-        await alert.present();
+      error: async (err) => {
+        this.loading = false;
+        // Si el perfil ya existe (409 CONFLICT), actualizar o avanzar
+        if (err.status === 409) {
+          this.router.navigate(['/dashboard']);
+          return;
+        }
+        const msg = err.error?.error?.message || 'Error al guardar el perfil. Intenta nuevamente.';
+        await this.showToast(msg, 'danger');
       }
     });
   }

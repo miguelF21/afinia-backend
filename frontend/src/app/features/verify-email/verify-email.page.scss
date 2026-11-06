@@ -1,0 +1,10 @@
+:host { display: block; }
+ion-content { --background: #fff; }
+.mail-art { position: relative; width: 110px; height: 110px; margin: 0 auto 26px; display: grid; place-items: center;
+  .ring { position: absolute; inset: 0; border-radius: 50%; background: var(--af-pink-soft); animation: pulse 2.8s ease-out infinite; &.r2 { animation-delay: 1.4s; } }
+  .env { position: relative; width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; background: var(--af-grad-brand); color: #fff; font-size: 42px; box-shadow: var(--af-shadow-brand); animation: af-pop .6s var(--af-ease) both; } }
+@keyframes pulse { 0% { transform: scale(.8); opacity: .8; } 100% { transform: scale(1.45); opacity: 0; } }
+.intro { text-align: center; margin-bottom: 26px; h1 { margin: 0 0 10px; font-size: 32px; font-weight: 800; letter-spacing: -.8px; } p { margin: 0; color: var(--af-muted); line-height: 1.55; b { color: var(--af-ink); word-break: break-all; } } }
+.resend { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 20px; color: var(--af-muted); font-weight: 500; button { border: 0; background: none; color: var(--af-raspberry); font-weight: 800; font-size: inherit; padding: 4px; &:disabled { color: var(--af-muted); cursor: default; } } }
+.ok { display: flex; gap: 8px; align-items: flex-start; margin: 14px 0 0; padding: 12px 14px; border-radius: var(--af-r-md); background: #e6f8ee; color: #178a4c; font-size: 13.5px; font-weight: 600; ion-icon { font-size: 18px; flex: none; margin-top: 1px; } }
+.switch { text-align: center; margin: 26px 0 0; a { display: inline-flex; align-items: center; gap: 6px; color: var(--af-ink-2); font-weight: 700; text-decoration: none; &:hover { color: var(--af-raspberry); } } }

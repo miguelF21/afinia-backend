@@ -1,55 +1,38 @@
-<ion-header class="ion-no-border">
-  <ion-toolbar color="primary">
-    <ion-title class="ion-text-center">
-      Afinia
-    </ion-title>
-  </ion-toolbar>
-</ion-header>
+<ion-content [fullscreen]="true">
+  <app-auth-layout>
+    <header class="intro">
+      <h1>¡Hola de nuevo!</h1>
+      <p>Ingresa para seguir descubriendo personas afines a ti.</p>
+    </header>
 
-<ion-content class="ion-padding auth-content">
-  <div class="auth-container">
-    <div class="logo-container ion-text-center ion-margin-bottom">
-      <h1 class="app-title">Bienvenido a Afinia</h1>
-      <p class="subtitle">Encuentra a tu pareja ideal basada en datos.</p>
-    </div>
-
-    <div class="auth-card">
-      <form (ngSubmit)="onLogin()">
-        <ion-item class="custom-input" lines="none">
-          <ion-icon name="mail-outline" slot="start" color="medium"></ion-icon>
-          <ion-input 
-            type="email" 
-            placeholder="Correo electrónico" 
-            [(ngModel)]="email" 
-            name="email" 
-            required>
-          </ion-input>
-        </ion-item>
-
-        <ion-item class="custom-input ion-margin-top" lines="none">
-          <ion-icon name="lock-closed-outline" slot="start" color="medium"></ion-icon>
-          <ion-input 
-            type="password" 
-            placeholder="Contraseña" 
-            [(ngModel)]="password" 
-            name="password" 
-            required>
-          </ion-input>
-        </ion-item>
-
-        <ion-button 
-          expand="block" 
-          color="primary" 
-          class="ion-margin-top primary-btn" 
-          type="submit" 
-          [disabled]="!email || !password">
-          Ingresar
-        </ion-button>
-      </form>
-
-      <div class="ion-text-center ion-margin-top">
-        <a routerLink="/register" class="link-text">¿No tienes cuenta? Regístrate</a>
+    <form class="form" (ngSubmit)="onLogin()" novalidate>
+      <div class="field">
+        <label for="email">Correo electrónico</label>
+        <div class="field-box">
+          <ion-icon name="mail-outline"></ion-icon>
+          <input id="email" type="email" placeholder="tu@correo.com" [(ngModel)]="email" name="email" autocomplete="email" required />
+        </div>
       </div>
-    </div>
-  </div>
+
+      <div class="field">
+        <label for="password">Contraseña</label>
+        <div class="field-box">
+          <ion-icon name="lock-closed-outline"></ion-icon>
+          <input id="password" [type]="showPassword ? 'text' : 'password'" placeholder="Tu contraseña" [(ngModel)]="password" name="password" autocomplete="current-password" required />
+          <button type="button" class="eye" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+            <ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-block" type="submit" [disabled]="!valid || loading">
+        <ion-spinner *ngIf="loading" name="crescent"></ion-spinner>
+        <ng-container *ngIf="!loading">Ingresar <ion-icon name="arrow-forward"></ion-icon></ng-container>
+      </button>
+    </form>
+
+    <p class="switch">¿No tienes cuenta? <a routerLink="/register">Regístrate</a></p>
+
+    <div class="trust"><ion-icon name="shield-checkmark"></ion-icon>Tus datos están protegidos. Conoce con confianza.</div>
+  </app-auth-layout>
 </ion-content>

@@ -1,65 +1,23 @@
-.onboarding-content {
-  --background: #ffffff;
-}
+:host { display: block; }
+ion-content { --background: #fff; }
 
-.onboarding-container {
-  max-width: 500px;
-  margin: 0 auto;
-  padding-top: 20px;
+.stepper { list-style: none; display: flex; justify-content: space-between; margin: 0 0 12px; padding: 0;
+  li { display: flex; align-items: center; gap: 8px; color: var(--af-muted); font-weight: 700; font-size: 13.5px; }
+  .n { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--af-lilac-soft); color: #6c5a94; font-size: 13px; transition: all .3s var(--af-ease); ion-icon { font-size: 16px; } }
+  .now { color: var(--af-raspberry); .n { background: var(--af-raspberry); color: #fff; box-shadow: 0 6px 14px rgba(216, 31, 87, .35); } }
+  .done .n { background: #2fc46f; color: #fff; } .done { color: var(--af-ink-2); } }
+.track { height: 6px; border-radius: 3px; background: var(--af-pink-soft); overflow: hidden; margin-bottom: 30px; i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #ff8fb1, #d81f57); transition: width .5s var(--af-ease); } }
 
-  h2 {
-    color: var(--ion-color-primary);
-    font-weight: 700;
-  }
-  
-  p {
-    color: #666;
-  }
-}
-
-.step-content {
-  animation: fadeIn 0.3s ease-in-out;
-  
-  h3 {
-    margin-bottom: 20px;
-    font-weight: 600;
-    color: #333;
-  }
-
-  .instruction {
-    font-size: 0.9rem;
-    margin-bottom: 20px;
-    font-style: italic;
-  }
-
-  .question-block {
-    margin-bottom: 30px;
-    background: #fcfcfc;
-    padding: 15px;
-    border-radius: 12px;
-    border: 1px solid #eee;
-
-    ion-label {
-      font-weight: 500;
-      color: #444;
-      display: block;
-      margin-bottom: 10px;
-      white-space: normal;
-    }
-  }
-}
-
-.nav-buttons {
-  display: flex;
-  justify-content: space-between;
-  
-  ion-button {
-    width: 45%;
-    --border-radius: 20px;
-  }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateX(10px); }
-  to { opacity: 1; transform: translateX(0); }
-}
+.step { animation: af-rise .4s var(--af-ease) both; min-height: 320px;
+  h1 { margin: 0 0 8px; font-size: 30px; font-weight: 800; letter-spacing: -.7px; } .lead { margin: 0 0 24px; color: var(--af-muted); line-height: 1.5; } }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 5px; border-radius: var(--af-r-md); background: var(--af-lilac-wash);
+  button { height: 44px; border: 0; border-radius: 14px; background: transparent; font-weight: 700; font-size: 14.5px; color: var(--af-ink-2); transition: all .25s var(--af-ease); &.on { background: #fff; color: var(--af-raspberry); box-shadow: var(--af-shadow-sm); } } }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; .big { padding: 11px 18px; font-size: 14.5px; } }
+.count { margin: 18px 0 0; font-weight: 700; color: var(--af-muted); font-size: 14px; &.ok { color: #178a4c; } }
+.q { padding: 18px; margin-bottom: 14px; border-radius: var(--af-r-md); background: var(--af-lilac-wash); display: grid; gap: 12px; b { font-size: 15.5px; } }
+.rate { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; button { height: 48px; border: 2px solid transparent; border-radius: 14px; background: #fff; font-weight: 800; font-size: 16px; color: var(--af-ink-2); transition: all .22s var(--af-ease); &:hover { border-color: var(--af-pink); } &.on { background: var(--af-grad-brand); color: #fff; transform: translateY(-2px); box-shadow: var(--af-shadow-brand); } } }
+.ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--af-muted); font-weight: 600; margin-top: -4px; }
+.goals { display: grid; gap: 8px; button { display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 16px; border: 2px solid transparent; border-radius: 14px; background: #fff; font-weight: 700; font-size: 14.5px; color: var(--af-ink-2); text-align: left; transition: all .22s var(--af-ease); ion-icon { font-size: 20px; color: var(--af-raspberry); } &:hover { border-color: var(--af-pink); } &.on { border-color: var(--af-raspberry); background: var(--af-pink-wash); color: var(--af-raspberry-dark); } } }
+.nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 28px; .btn-primary { min-width: 160px; } }
+@media (max-width: 520px) { .stepper .t { display: none; } .stepper .now .t { display: inline; } .two { grid-template-columns: 1fr; } }

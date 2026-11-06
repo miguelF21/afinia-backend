@@ -1,7 +1,8 @@
 import { Component } from '@angular/core';
 import { Router } from '@angular/router';
-import { AlertController, LoadingController } from '@ionic/angular';
+import { ToastController } from '@ionic/angular';
 import { AuthService } from '../../../core/services/auth.service';
+import { UserStateService } from '../../../core/user-state.service';
 
 @Component({
   selector: 'app-register',
@@ -10,69 +11,69 @@ import { AuthService } from '../../../core/services/auth.service';
   standalone: false,
 })
 export class RegisterPage {
+  name = '';
   email = '';
   password = '';
+  acceptTerms = false;
+  showPassword = false;
+  loading = false;
 
   constructor(
-    private auth: AuthService,
     private router: Router,
-    private loadingCtrl: LoadingController,
-    private alertCtrl: AlertController
-  ) {}
+    private user: UserStateService,
+    private auth: AuthService,
+    private toastController: ToastController
+  ) { }
 
-  async onRegister() {
-    if (!this.email || !this.password) {
-      this.showAlert('Faltan datos', 'Por favor, ingresa tu correo y contraseña.');
-      return;
-    }
+  get emailOk(): boolean { return /^\S+@\S+\.\S+$/.test(this.email); }
+  get checks() {
+    return [
+      { ok: this.password.length >= 8, label: '8 caracteres' },
+      { ok: /[A-Z]/.test(this.password) && /[a-z]/.test(this.password), label: 'Mayúscula y minúscula' },
+      { ok: /\d/.test(this.password), label: 'Un número' },
+    ];
+  }
+  get strength(): number { return this.checks.filter(c => c.ok).length; }
+  get valid(): boolean { return !!this.name.trim() && this.emailOk && this.strength === 3 && this.acceptTerms && !this.loading; }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(this.email)) {
-      this.showAlert('Correo inválido', 'Por favor, ingresa un correo electrónico válido.');
-      return;
-    }
-
-    if (this.password.length < 6) {
-      this.showAlert('Contraseña débil', 'La contraseña debe tener al menos 6 caracteres.');
-      return;
-    }
-
-    const loading = await this.loadingCtrl.create({ message: 'Creando cuenta...' });
-    await loading.present();
-
-    this.auth.register(this.email, this.password).subscribe({
-      next: async () => {
-        // Login automático tras registro exitoso
-        this.auth.login(this.email, this.password).subscribe({
-          next: async () => {
-            await loading.dismiss();
-            this.router.navigate(['/onboarding']);
-          },
-          error: async () => {
-            await loading.dismiss();
-            this.router.navigate(['/login']);
-          }
-        });
-      },
-      error: async (err: any) => {
-        await loading.dismiss();
-        const msg = err.status === 409 ? 'El correo ya está registrado.' : 'Error al crear la cuenta.';
-        const alert = await this.alertCtrl.create({
-          header: 'Error',
-          message: msg,
-          buttons: ['OK']
-        });
-        await alert.present();
-      }
+  async showError(message: string) {
+    const toast = await this.toastController.create({
+      message,
+      duration: 3500,
+      color: 'danger',
+      position: 'bottom',
     });
+    await toast.present();
   }
 
-  private async showAlert(header: string, message: string) {
-    const alert = await this.alertCtrl.create({
-      header,
+  async showSuccess(message: string) {
+    const toast = await this.toastController.create({
       message,
-      buttons: ['OK']
+      duration: 3000,
+      color: 'success',
+      position: 'bottom',
     });
-    await alert.present();
+    await toast.present();
+  }
+
+  onRegister() {
+    if (!this.valid || this.loading) return;
+    this.loading = true;
+
+    this.auth.register(this.email, this.password).subscribe({
+      next: (res) => {
+        this.loading = false;
+        this.user.profile.first_name = this.name.trim().split(' ')[0];
+        this.user.profile.email = this.email;
+        this.user.save();
+        this.showSuccess('Cuenta creada exitosamente. Revisa tu correo.');
+        this.router.navigate(['/verify-email']);
+      },
+      error: async (err) => {
+        this.loading = false;
+        const msg = err.error?.error?.message || 'Error al registrar la cuenta. Intenta nuevamente.';
+        await this.showError(msg);
+      },
+    });
   }
 }

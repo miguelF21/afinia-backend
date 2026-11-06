@@ -1,0 +1,37 @@
+:host { display: block; }
+.page { max-width: 1100px; margin: 0 auto; padding-top: 6px; }
+.head { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; flex-wrap: wrap; margin-bottom: 24px; }
+.tabs { display: inline-flex; padding: 5px; border-radius: var(--af-r-pill); background: var(--af-lilac-soft);
+  button { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border: 0; border-radius: var(--af-r-pill); background: transparent; font-weight: 700; font-size: 14px; color: #6c5a94; transition: all .25s var(--af-ease);
+    em { font-style: normal; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; display: grid; place-items: center; font-size: 12px; background: rgba(255, 255, 255, .7); }
+    &.on { background: #fff; color: var(--af-raspberry); box-shadow: var(--af-shadow-sm); em { background: var(--af-raspberry); color: #fff; } } } }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(236px, 1fr)); gap: 22px; }
+.m-card { display: flex; flex-direction: column; background: #fff; border-radius: 28px; overflow: hidden; box-shadow: var(--af-shadow-md); border: 1px solid rgba(238, 230, 240, .7); animation: af-rise .5s var(--af-ease) both;
+  transition: transform .3s var(--af-ease), box-shadow .3s; &:hover { transform: translateY(-6px); box-shadow: var(--af-shadow-lg); } }
+.pic { position: relative; aspect-ratio: 4 / 4.4; color: #fff;
+  .aff { position: absolute; top: 14px; right: 12px; z-index: 3; transform: scale(.88); transform-origin: top right; }
+  .new { position: absolute; top: 16px; left: 14px; z-index: 3; padding: 5px 12px; border-radius: 999px; background: var(--af-raspberry); font-size: 12px; font-weight: 800; box-shadow: var(--af-shadow-brand); }
+  .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(40, 10, 30, 0) 50%, rgba(40, 10, 30, .75)); }
+  .who { position: absolute; left: 16px; right: 16px; bottom: 14px; z-index: 2;
+    h3 { margin: 0; font-size: 21px; font-weight: 800; display: flex; align-items: center; gap: 8px; text-shadow: 0 2px 8px rgba(0, 0, 0, .25); }
+    .on { width: 10px; height: 10px; border-radius: 50%; background: #3be07f; box-shadow: 0 0 0 3px rgba(59, 224, 127, .3); }
+    p { margin: 3px 0 0; display: flex; align-items: center; gap: 5px; font-size: 13.5px; font-weight: 600; opacity: .95; } } }
+.body { padding: 16px; display: flex; flex-direction: column; flex: 1; gap: 14px; .btn { margin-top: auto; } .tags { display: flex; flex-wrap: wrap; gap: 7px; min-height: 31px; } }
+
+.m-card.more { align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 28px 20px; min-height: 240px; text-decoration: none; color: var(--af-ink); border: 2px dashed #f2b5c8; background: linear-gradient(160deg, #fff7fa, #fbf6ff); box-shadow: none;
+  .plus { width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; background: var(--af-pink-soft); color: var(--af-raspberry); font-size: 34px; margin-bottom: 8px; transition: transform .3s var(--af-ease), background .3s; }
+  b { font-size: 16px; } small { color: var(--af-muted); font-size: 13px; max-width: 170px; line-height: 1.4; }
+  &:hover .plus { transform: rotate(90deg) scale(1.08); background: var(--af-raspberry); color: #fff; } }
+.empty { display: grid; justify-items: center; text-align: center; gap: 12px; padding: 64px 28px; max-width: 520px; margin: 30px auto;
+  .emp-ico { width: 84px; height: 84px; display: grid; place-items: center; border-radius: 50%; background: var(--af-pink-soft); color: var(--af-raspberry); font-size: 40px; }
+  h2 { margin: 6px 0 0; font-size: 24px; font-weight: 800; } p { margin: 0 0 10px; color: var(--af-muted); max-width: 340px; line-height: 1.5; } }
+
+@media (max-width: 720px) {
+  .grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .m-card { border-radius: 22px; } .body { padding: 12px; gap: 10px; .btn { padding: 0 10px; font-size: 13px; ion-icon { display: none; } } }
+  .pic .who h3 { font-size: 17px; } .pic .who p { font-size: 12px; }
+  .pic .aff { top: 10px; right: 8px; transform: scale(.78); }
+  .pic .new { top: 46px; left: 10px; }
+  .tabs { width: 100%; button { flex: 1; justify-content: center; padding: 0 8px; } }
+}

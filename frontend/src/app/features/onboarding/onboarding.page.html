@@ -1,90 +1,73 @@
-<ion-header class="ion-no-border">
-  <ion-toolbar color="secondary">
-    <ion-title class="ion-text-center">Crear Perfil</ion-title>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content class="ion-padding onboarding-content">
-  <div class="onboarding-container">
-    <div class="ion-text-center ion-margin-bottom">
-      <h2>¡Cuentanos sobre ti!</h2>
-      <p>Afinia utilizará estos datos para encontrar tus mejores matches predictivos.</p>
-    </div>
-
+<ion-content [fullscreen]="true">
+  <app-auth-layout [width]="500">
     <!-- Progreso -->
-    <ion-progress-bar [value]="currentStep / totalSteps" color="primary" class="ion-margin-bottom"></ion-progress-bar>
+    <ol class="stepper" aria-label="Progreso">
+      <li *ngFor="let s of steps; let i = index" [class.done]="currentStep > i + 1" [class.now]="currentStep === i + 1">
+        <span class="n"><ion-icon *ngIf="currentStep > i + 1" name="checkmark"></ion-icon><ng-container *ngIf="currentStep <= i + 1">{{ i + 1 }}</ng-container></span>
+        <span class="t">{{ s }}</span>
+      </li>
+    </ol>
+    <div class="track"><i [style.width.%]="currentStep / totalSteps * 100"></i></div>
 
     <div [ngSwitch]="currentStep">
-      
+
       <!-- Paso 1: Básicos -->
-      <div *ngSwitchCase="1" class="step-content">
-        <h3>Datos Básicos</h3>
-        <ion-item class="custom-input" lines="none">
-          <ion-input label="Nombre" labelPlacement="floating" placeholder="Tu nombre" [(ngModel)]="profile.first_name"></ion-input>
-        </ion-item>
-        
-        <ion-item class="custom-input" lines="none">
-          <ion-select label="Género" labelPlacement="floating" [(ngModel)]="profile.gender">
-            <ion-select-option value="Masculino">Masculino</ion-select-option>
-            <ion-select-option value="Femenino">Femenino</ion-select-option>
-            <ion-select-option value="Otro">Otro</ion-select-option>
-          </ion-select>
-        </ion-item>
-        
-        <ion-item class="custom-input" lines="none">
-          <ion-input type="date" label="Fecha de nacimiento" labelPlacement="floating" [(ngModel)]="profile.birth_date"></ion-input>
-        </ion-item>
+      <div *ngSwitchCase="1" class="step">
+        <h1>¡Cuéntanos sobre ti!</h1>
+        <p class="lead">AFINIA usará estos datos para encontrar tus mejores matches.</p>
 
-        <ion-item class="custom-input" lines="none">
-          <ion-input label="Ciudad" labelPlacement="floating" placeholder="Ej. Bogotá" [(ngModel)]="profile.city"></ion-input>
-        </ion-item>
+        <div class="field"><label for="n">Nombre</label>
+          <div class="field-box"><ion-icon name="person-outline"></ion-icon><input id="n" type="text" placeholder="Tu nombre" [(ngModel)]="profile.first_name" name="first_name" /></div></div>
+
+        <div class="field"><span class="field-label">Género</span>
+          <div class="seg"><button type="button" *ngFor="let g of genders" [class.on]="profile.gender === g" (click)="profile.gender = g">{{ g }}</button></div></div>
+
+        <div class="two">
+          <div class="field"><label for="a">Edad</label>
+            <div class="field-box"><ion-icon name="calendar-outline"></ion-icon><input id="a" type="number" min="18" max="99" placeholder="Ej. 25" [(ngModel)]="profile.age" name="age" /></div></div>
+          <div class="field"><label for="c">Ciudad</label>
+            <div class="field-box"><ion-icon name="location-outline"></ion-icon><input id="c" type="text" placeholder="Ej. Villavicencio" [(ngModel)]="profile.city" name="city" /></div></div>
+        </div>
+        <p class="field-error" *ngIf="profile.age !== null && profile.age < 18">Debes ser mayor de 18 años.</p>
       </div>
 
-      <!-- Paso 2: Psicológico (Analytics) -->
-      <div *ngSwitchCase="2" class="step-content">
-        <h3>Test de Personalidad</h3>
-        <p class="instruction">Califica del 1 al 5 qué tan de acuerdo estás.</p>
+      <!-- Paso 2: Intereses -->
+      <div *ngSwitchCase="2" class="step">
+        <h1>¿Qué te apasiona?</h1>
+        <p class="lead">Elige al menos 3 intereses (máximo 8). Son la base de tu afinidad.</p>
+        <div class="chips"><button type="button" class="chip big" *ngFor="let t of catalog" [class.is-on]="interests.includes(t)" (click)="toggleInterest(t)">
+          <ion-icon *ngIf="interests.includes(t)" name="checkmark"></ion-icon>{{ t }}</button></div>
+        <p class="count" [class.ok]="interests.length >= 3">{{ interests.length }} / 8 seleccionados</p>
+      </div>
 
-        <div class="question-block">
-          <ion-label>Soy una persona extrovertida</ion-label>
-          <ion-range [ticks]="true" [snaps]="true" [min]="1" [max]="5" [(ngModel)]="analytics.intro_extro">
-            <ion-label slot="start">1</ion-label>
-            <ion-label slot="end">5</ion-label>
-          </ion-range>
+      <!-- Paso 3: Personalidad -->
+      <div *ngSwitchCase="3" class="step">
+        <h1>Test de personalidad</h1>
+        <p class="lead">Califica del 1 al 5 qué tan de acuerdo estás.</p>
+
+        <div class="q">
+          <b>Soy una persona extrovertida</b>
+          <div class="rate"><button type="button" *ngFor="let n of scale" [class.on]="analytics.intro_extro === n" (click)="analytics.intro_extro = n">{{ n }}</button></div>
+          <div class="ends"><span>Nada de acuerdo</span><span>Totalmente</span></div>
         </div>
-
-        <div class="question-block">
-          <ion-label>Importancia de compartir Hobbies</ion-label>
-          <ion-range [ticks]="true" [snaps]="true" [min]="1" [max]="5" [(ngModel)]="analytics.hobbies">
-            <ion-label slot="start">1</ion-label>
-            <ion-label slot="end">5</ion-label>
-          </ion-range>
+        <div class="q">
+          <b>Importancia de compartir hobbies</b>
+          <div class="rate"><button type="button" *ngFor="let n of scale" [class.on]="analytics.hobbies === n" (click)="analytics.hobbies = n">{{ n }}</button></div>
+          <div class="ends"><span>Poco importante</span><span>Muy importante</span></div>
         </div>
-
-        <div class="question-block">
-          <ion-label>¿Qué tipo de relación buscas?</ion-label>
-          <ion-select [(ngModel)]="analytics.target" class="custom-input" lines="none">
-            <ion-select-option value="Una relación seria y estable">Relación seria y estable</ion-select-option>
-            <ion-select-option value="Algo casual">Algo casual</ion-select-option>
-            <ion-select-option value="Amistad primero y ver qué pasa">Amistad primero</ion-select-option>
-          </ion-select>
+        <div class="q">
+          <b>¿Qué tipo de relación buscas?</b>
+          <div class="goals"><button type="button" *ngFor="let g of goals" [class.on]="analytics.target === g.value" (click)="analytics.target = g.value">
+            <ion-icon [name]="g.icon"></ion-icon>{{ g.label }}</button></div>
         </div>
       </div>
     </div>
 
-    <!-- Controles de navegación -->
-    <div class="nav-buttons ion-margin-top">
-      <ion-button fill="outline" color="medium" (click)="prevStep()" [disabled]="currentStep === 1">
-        Atrás
-      </ion-button>
-      
-      <ion-button color="primary" (click)="nextStep()" *ngIf="currentStep < totalSteps">
-        Siguiente
-      </ion-button>
-      
-      <ion-button color="success" (click)="finishOnboarding()" *ngIf="currentStep === totalSteps">
-        Finalizar
-      </ion-button>
+    <!-- Navegación -->
+    <div class="nav">
+      <button class="btn btn-ghost" type="button" (click)="prevStep()" [style.visibility]="currentStep === 1 ? 'hidden' : 'visible'"><ion-icon name="arrow-back"></ion-icon>Atrás</button>
+      <button class="btn btn-primary" type="button" (click)="nextStep()" *ngIf="currentStep < totalSteps" [disabled]="!canContinue">Siguiente <ion-icon name="arrow-forward"></ion-icon></button>
+      <button class="btn btn-primary" type="button" (click)="finishOnboarding()" *ngIf="currentStep === totalSteps" [disabled]="!canContinue">Finalizar <ion-icon name="heart"></ion-icon></button>
     </div>
-  </div>
+  </app-auth-layout>
 </ion-content>

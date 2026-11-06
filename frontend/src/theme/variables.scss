@@ -1,2 +1,70 @@
-// For information on how to create your own theme, please refer to:
-// https://ionicframework.com/docs/theming/
+// AFINIA · Tokens de diseño y tema de Ionic
+// Rojo frambuesa = protagonista · lila tenue = apoyo · blanco = base · rosa pastel = decoración
+
+:root {
+  // --- Marca ---
+  --af-raspberry: #d81f57;
+  --af-raspberry-dark: #b3123f;
+  --af-raspberry-light: #f0507f;
+  --af-pink: #ff8fb1;
+  --af-pink-soft: #ffe3ec;
+  --af-pink-wash: #fff3f7;
+  --af-lilac: #b8a1e6;
+  --af-lilac-soft: #efe8fb;
+  --af-lilac-wash: #f7f3fd;
+
+  // --- Texto ---
+  --af-ink: #2a2431;
+  --af-ink-2: #4b4455;
+  --af-muted: #7d7688;
+  --af-line: #eee6f0;
+
+  // --- Superficies ---
+  --af-bg: #ffffff;
+  --af-surface: #ffffff;
+  --af-grad-brand: linear-gradient(135deg, #e8346a 0%, #d81f57 55%, #b3123f 100%);
+  --af-grad-soft: linear-gradient(160deg, #fff3f7 0%, #f7f0fd 100%);
+  --af-grad-logo: linear-gradient(135deg, #ff7fa6 0%, #d81f57 100%);
+
+  // --- Forma y profundidad ---
+  --af-r-sm: 12px;
+  --af-r-md: 18px;
+  --af-r-lg: 26px;
+  --af-r-pill: 999px;
+  --af-shadow-sm: 0 2px 10px rgba(80, 30, 70, 0.06);
+  --af-shadow-md: 0 10px 30px rgba(120, 40, 90, 0.10);
+  --af-shadow-lg: 0 24px 60px rgba(120, 30, 80, 0.18);
+  --af-shadow-brand: 0 10px 24px rgba(216, 31, 87, 0.32);
+
+  --af-font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --af-font-script: 'Caveat', cursive;
+  --af-ease: cubic-bezier(0.22, 0.9, 0.3, 1);
+
+  // --- Ionic ---
+  --ion-font-family: var(--af-font);
+  --ion-background-color: #ffffff;
+  --ion-background-color-rgb: 255, 255, 255;
+  --ion-text-color: var(--af-ink);
+  --ion-text-color-rgb: 42, 36, 49;
+
+  --ion-color-primary: #d81f57;
+  --ion-color-primary-rgb: 216, 31, 87;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #be1b4d;
+  --ion-color-primary-tint: #dd3668;
+
+  --ion-color-secondary: #b8a1e6;
+  --ion-color-secondary-rgb: 184, 161, 230;
+  --ion-color-secondary-contrast: #2a2431;
+  --ion-color-secondary-contrast-rgb: 42, 36, 49;
+  --ion-color-secondary-shade: #a28ecb;
+  --ion-color-secondary-tint: #bfa9e9;
+
+  --ion-color-tertiary: #ff8fb1;
+  --ion-color-tertiary-rgb: 255, 143, 177;
+  --ion-color-tertiary-contrast: #2a2431;
+  --ion-color-tertiary-contrast-rgb: 42, 36, 49;
+  --ion-color-tertiary-shade: #e08099;
+  --ion-color-tertiary-tint: #ff9cb8;
+}

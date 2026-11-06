@@ -1,0 +1,99 @@
+<div class="shell" [class.with-panel]="showPanel" [class.in-chat]="inChat">
+
+  <!-- ───── Barra lateral ───── -->
+  <aside class="sidebar">
+    <a class="brand" routerLink="/dashboard" aria-label="AFINIA">
+      <app-logo [size]="40" [stacked]="true"></app-logo>
+      <span class="slogan">Conecta por afinidades</span>
+    </a>
+
+    <nav class="nav" aria-label="Principal">
+      <a *ngFor="let n of nav" class="nav-item" [routerLink]="n.path" routerLinkActive="active">
+        <ion-icon [name]="n.icon"></ion-icon>
+        <span class="lbl">{{ n.label }}</span>
+        <em class="badge" *ngIf="n.badge && n.badge() > 0">{{ n.badge() }}</em>
+      </a>
+    </nav>
+
+    <div class="promo">
+      <span class="promo-blob"></span>
+      <ion-icon name="heart-circle-outline"></ion-icon>
+      <p>Encuentra personas con tus mismos intereses</p>
+      <a class="btn btn-primary btn-sm" routerLink="/dashboard">¡Descubre más!</a>
+    </div>
+  </aside>
+
+  <!-- ───── Contenido ───── -->
+  <div class="main">
+    <header class="topbar">
+      <a class="m-logo" routerLink="/dashboard"><app-logo [size]="26"></app-logo></a>
+
+      <label class="search" *ngIf="showSearch">
+        <ion-icon name="search-outline"></ion-icon>
+        <input type="search" placeholder="Buscar personas…" [(ngModel)]="data.query" name="q" aria-label="Buscar personas" />
+        <button *ngIf="data.query" class="clear" (click)="data.query = ''" aria-label="Limpiar"><ion-icon name="close-circle"></ion-icon></button>
+      </label>
+      <span class="spacer"></span>
+
+      <a class="bell" routerLink="/messages" aria-label="Notificaciones">
+        <ion-icon name="notifications-outline"></ion-icon>
+        <i *ngIf="data.unreadTotal > 0"></i>
+      </a>
+
+      <div class="me">
+        <button class="me-btn" (click)="menuOpen = !menuOpen" aria-haspopup="menu" [attr.aria-expanded]="menuOpen">
+          <app-avatar [name]="user.displayName" [tone]="0" [size]="40"></app-avatar>
+          <ion-icon name="chevron-down" class="chev" [class.up]="menuOpen"></ion-icon>
+        </button>
+        <div class="menu" *ngIf="menuOpen" role="menu">
+          <div class="menu-head"><b>{{ user.displayName }}</b><small>{{ user.handle }}</small></div>
+          <a routerLink="/profile" role="menuitem"><ion-icon name="person-outline"></ion-icon>Mi perfil</a>
+          <a routerLink="/settings" role="menuitem"><ion-icon name="settings-outline"></ion-icon>Configuración</a>
+          <button (click)="logout()" role="menuitem"><ion-icon name="log-out-outline"></ion-icon>Cerrar sesión</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="content"><router-outlet></router-outlet></div>
+  </div>
+
+  <!-- ───── Panel de mensajes (solo en Descubrir) ───── -->
+  <aside class="msgs" *ngIf="showPanel">
+    <div class="msgs-head"><h2>Mensajes</h2><a routerLink="/messages">Ver todos <ion-icon name="arrow-forward"></ion-icon></a></div>
+
+    <div class="msgs-list" *ngIf="panelChats.length; else noChats">
+      <a *ngFor="let p of panelChats; let i = index" class="m-row" [class.hl]="data.unread[p.id]" [routerLink]="['/messages', p.id]">
+        <app-avatar [name]="p.name" [tone]="p.tone" [size]="50" [online]="p.online"></app-avatar>
+        <div class="m-txt">
+          <div class="m-top"><b>{{ p.name }}</b><time>{{ data.timeLabel(data.lastMessage(p.id)!.at) }}</time></div>
+          <p>{{ data.lastMessage(p.id)!.text }}</p>
+        </div>
+      </a>
+    </div>
+    <ng-template #noChats><p class="empty">Aún no tienes conversaciones. ¡Haz match para empezar!</p></ng-template>
+
+    <div class="recent" *ngIf="data.matches.length">
+      <h3>Tus matches</h3>
+      <div class="r-row"><a *ngFor="let p of data.matches.slice(0, 5)" [routerLink]="['/messages', p.id]" [title]="p.name"><app-avatar [name]="p.name" [tone]="p.tone" [size]="54" [online]="p.online"></app-avatar><span>{{ p.name }}</span></a></div>
+    </div>
+
+    <div class="activity">
+      <div><b>{{ data.matches.length }}</b><span>Matches</span></div>
+      <div><b>{{ data.likesSent }}</b><span>Me gusta enviados</span></div>
+    </div>
+
+    <div class="msgs-art">
+      <span class="bub b1"><ion-icon name="heart"></ion-icon></span>
+      <span class="bub b2"><ion-icon name="heart"></ion-icon></span>
+      <p>¡Chatea, conecta y<br />disfruta la experiencia!</p>
+    </div>
+  </aside>
+
+  <!-- ───── Navegación móvil ───── -->
+  <nav class="tabbar" aria-label="Principal">
+    <a *ngFor="let n of nav" class="tab" [routerLink]="n.path" routerLinkActive="active">
+      <span class="ico"><ion-icon [name]="n.icon"></ion-icon><em *ngIf="n.badge && n.badge() > 0">{{ n.badge() }}</em></span>
+      <span>{{ n.label.replace('Mis ', '').replace('Mi ', '').replace('Configuración', 'Ajustes') }}</span>
+    </a>
+  </nav>
+</div>

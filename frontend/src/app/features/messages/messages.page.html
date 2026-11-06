@@ -1,0 +1,56 @@
+<section class="chat-page" [class.show-thread]="!!routeId">
+  <!-- Lista -->
+  <aside class="list card">
+    <div class="list-head"><h1>Mensajes</h1><span class="count" *ngIf="data.unreadTotal">{{ data.unreadTotal }} nuevos</span></div>
+
+    <div class="rows" *ngIf="list.length; else noList">
+      <button *ngFor="let p of list" class="row" [class.active]="p.id === desktopId" [class.unread]="data.unread[p.id]" (click)="select(p)">
+        <app-avatar [name]="p.name" [tone]="p.tone" [size]="52" [online]="p.online"></app-avatar>
+        <div class="txt">
+          <div class="top"><b>{{ p.name }}</b><time *ngIf="data.lastMessage(p.id) as lm">{{ data.timeLabel(lm.at) }}</time></div>
+          <p *ngIf="data.lastMessage(p.id) as lm; else say"><ion-icon *ngIf="lm.fromMe" name="checkmark-done"></ion-icon>{{ lm.text }}</p>
+          <ng-template #say><p class="say">¡Rompe el hielo con {{ p.name }}!</p></ng-template>
+        </div>
+        <em *ngIf="data.unread[p.id] as u">{{ u }}</em>
+      </button>
+    </div>
+    <ng-template #noList><p class="none">No encontramos conversaciones.</p></ng-template>
+  </aside>
+
+  <!-- Conversación -->
+  <div class="thread card" *ngIf="active as p; else pick">
+    <header class="t-head">
+      <button class="icon-btn back" (click)="back()" aria-label="Volver"><ion-icon name="arrow-back"></ion-icon></button>
+      <app-avatar [name]="p.name" [tone]="p.tone" [size]="46" [online]="p.online"></app-avatar>
+      <div class="who"><b>{{ p.name }}</b><span [class.on]="p.online">{{ p.online ? 'En línea' : 'Desconectada' }}</span></div>
+      <app-affinity-badge class="aff" [value]="p.affinity"></app-affinity-badge>
+    </header>
+
+    <div class="msgs" #scroller>
+      <div class="intro" *ngIf="!thread.length">
+        <app-avatar [name]="p.name" [tone]="p.tone" [size]="84"></app-avatar>
+        <h3>Hiciste match con {{ p.name }}</h3>
+        <p>{{ p.affinity }}% de afinidad · Intereses en común: {{ p.interests.slice(0, 3).join(', ') }}</p>
+      </div>
+      <div class="bubble-row" *ngFor="let m of thread" [class.mine]="m.fromMe">
+        <div class="bubble">
+          <span>{{ m.text }}</span>
+          <small>{{ dayLabel(m.at) }}<ion-icon *ngIf="m.fromMe" [name]="m.read ? 'checkmark-done' : 'checkmark'"></ion-icon></small>
+        </div>
+      </div>
+    </div>
+
+    <div class="ice" *ngIf="thread.length <= 1">
+      <button *ngFor="let s of icebreakers" class="chip pink" (click)="send(s)">{{ s }}</button>
+    </div>
+
+    <form class="composer" (ngSubmit)="send()">
+      <div class="field-box"><input type="text" [(ngModel)]="draft" name="draft" placeholder="Escribe un mensaje…" autocomplete="off" aria-label="Mensaje" /></div>
+      <button class="send" type="submit" [disabled]="!draft.trim()" aria-label="Enviar"><ion-icon name="send"></ion-icon></button>
+    </form>
+  </div>
+
+  <ng-template #pick>
+    <div class="thread card pick"><span class="emp-ico"><ion-icon name="chatbubbles-outline"></ion-icon></span><h2>Aún no hay conversaciones</h2><p>Haz match con alguien y empieza a chatear.</p><a class="btn btn-primary" routerLink="/dashboard">Descubrir personas</a></div>
+  </ng-template>
+</section>

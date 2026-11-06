@@ -1,0 +1,46 @@
+<section class="page">
+  <header class="head rise">
+    <div>
+      <h1 class="page-title">Mis matches</h1>
+      <p class="page-sub">{{ data.matches.length }} personas con las que conectaste</p>
+    </div>
+    <div class="tabs" role="tablist">
+      <button *ngFor="let t of tabs" role="tab" [attr.aria-selected]="tab === t.id" [class.on]="tab === t.id" (click)="tab = t.id">
+        {{ t.label }}<em>{{ t.n }}</em>
+      </button>
+    </div>
+  </header>
+
+  <div class="grid" *ngIf="list.length; else none">
+    <article class="m-card" *ngFor="let p of list; let i = index" [style.animation-delay.ms]="i * 60">
+      <div class="pic">
+        <app-photo [tone]="p.tone" [name]="p.name"></app-photo>
+        <span class="new" *ngIf="isNew(p)">Nuevo</span>
+        <app-affinity-badge class="aff" [value]="p.affinity"></app-affinity-badge>
+        <div class="shade"></div>
+        <div class="who">
+          <h3>{{ p.name }}, {{ p.age }}<i class="on" *ngIf="p.online" title="En línea"></i></h3>
+          <p><ion-icon name="location"></ion-icon>{{ p.city }}</p>
+        </div>
+      </div>
+      <div class="body">
+        <div class="tags"><span class="chip" *ngFor="let t of p.interests.slice(0, 3)">{{ t }}</span></div>
+        <a class="btn btn-primary btn-sm btn-block" [routerLink]="['/messages', p.id]"><ion-icon name="chatbubble-ellipses"></ion-icon>Enviar mensaje</a>
+      </div>
+    </article>
+    <a class="m-card more" routerLink="/dashboard">
+      <span class="plus"><ion-icon name="add"></ion-icon></span>
+      <b>Encuentra más personas</b>
+      <small>Descubre perfiles compatibles contigo</small>
+    </a>
+  </div>
+
+  <ng-template #none>
+    <div class="empty card rise-2">
+      <span class="emp-ico"><ion-icon name="heart-dislike-outline"></ion-icon></span>
+      <h2>Aún no hay matches aquí</h2>
+      <p>Sigue descubriendo personas: cuando el interés sea mutuo aparecerán en esta lista.</p>
+      <a class="btn btn-primary" routerLink="/dashboard"><ion-icon name="compass"></ion-icon>Descubrir personas</a>
+    </div>
+  </ng-template>
+</section>

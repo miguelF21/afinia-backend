@@ -1,33 +1,45 @@
-<ion-content class="auth-page">
-  <div class="auth-container">
-    <div class="logo-section">
-      <h1 class="logo-text">Afinia</h1>
-    </div>
+<ion-content [fullscreen]="true">
+  <app-auth-layout>
+    <header class="intro">
+      <h1>Crear cuenta</h1>
+      <p>Únete para encontrar a tu pareja ideal.</p>
+    </header>
 
-    <div class="auth-card">
-      <h2 class="ion-text-center">Crear cuenta</h2>
-      <p class="ion-text-center text-muted">Únete para encontrar a tu pareja ideal.</p>
-
-      <form (ngSubmit)="onRegister()">
-
-        <ion-item class="custom-input" lines="none">
-          <ion-icon name="mail-outline" slot="start" color="medium"></ion-icon>
-          <ion-input type="email" placeholder="Correo electrónico" [(ngModel)]="email" name="email" required></ion-input>
-        </ion-item>
-
-        <ion-item class="custom-input" lines="none">
-          <ion-icon name="lock-closed-outline" slot="start" color="medium"></ion-icon>
-          <ion-input type="password" placeholder="Contraseña" [(ngModel)]="password" name="password" required></ion-input>
-        </ion-item>
-
-        <ion-button expand="block" shape="round" color="primary" class="ion-margin-top" type="submit">
-          REGISTRARSE
-        </ion-button>
-      </form>
-
-      <div class="ion-text-center ion-margin-top">
-        <a routerLink="/login" class="link-text">¿Ya tienes cuenta? Ingresa</a>
+    <form class="form" (ngSubmit)="onRegister()" novalidate>
+      <div class="field">
+        <label for="name">Nombre completo</label>
+        <div class="field-box"><ion-icon name="person-outline"></ion-icon>
+          <input id="name" type="text" placeholder="Tu nombre" [(ngModel)]="name" name="name" autocomplete="name" required /></div>
       </div>
-    </div>
-  </div>
+
+      <div class="field">
+        <label for="email">Correo electrónico</label>
+        <div class="field-box"><ion-icon name="mail-outline"></ion-icon>
+          <input id="email" type="email" placeholder="tu@correo.com" [(ngModel)]="email" name="email" autocomplete="email" required /></div>
+        <p class="field-error" *ngIf="email && !emailOk">Escribe un correo válido.</p>
+      </div>
+
+      <div class="field">
+        <label for="password">Contraseña</label>
+        <div class="field-box"><ion-icon name="lock-closed-outline"></ion-icon>
+          <input id="password" [type]="showPassword ? 'text' : 'password'" placeholder="Crea una contraseña segura" [(ngModel)]="password" name="password" autocomplete="new-password" required />
+          <button type="button" class="eye" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"><ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon></button>
+        </div>
+        <div class="meter" *ngIf="password" [attr.data-s]="strength">
+          <div class="bars"><i *ngFor="let n of [1,2,3]" [class.on]="strength >= n"></i></div>
+          <ul><li *ngFor="let c of checks" [class.ok]="c.ok"><ion-icon [name]="c.ok ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>{{ c.label }}</li></ul>
+        </div>
+      </div>
+
+      <label class="terms">
+        <input type="checkbox" [(ngModel)]="acceptTerms" name="terms" />
+        <span class="box"><ion-icon name="checkmark"></ion-icon></span>
+        <span>Acepto los <b>Términos de servicio</b> y la <b>Política de privacidad</b>.</span>
+      </label>
+
+      <button class="btn btn-primary btn-block" type="submit" [disabled]="!valid">Crear mi cuenta <ion-icon name="arrow-forward"></ion-icon></button>
+    </form>
+
+    <p class="switch">¿Ya tienes cuenta? <a routerLink="/login">Ingresa</a></p>
+  </app-auth-layout>
 </ion-content>

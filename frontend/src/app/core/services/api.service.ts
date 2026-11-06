@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
@@ -8,19 +8,47 @@ import { AuthService } from './auth.service';
 export class ApiService {
   constructor(private http: HttpClient, private auth: AuthService) {}
 
-  private headers(): HttpHeaders {
-    return new HttpHeaders({ Authorization: `Bearer ${this.auth.getToken()}` });
+  private getHeaders(): HttpHeaders {
+    let headers = new HttpHeaders({
+      'Content-Type': 'application/json',
+    });
+    const token = this.auth.getToken();
+    if (token) {
+      headers = headers.set('Authorization', `Bearer ${token}`);
+    }
+    return headers;
   }
 
-  get<T>(path: string): Observable<T> {
-    return this.http.get<T>(`${environment.apiUrl}${path}`, { headers: this.headers() });
+  get<T>(path: string, params?: { [param: string]: string | number | boolean }): Observable<T> {
+    let httpParams = new HttpParams();
+    if (params) {
+      Object.keys(params).forEach((key) => {
+        if (params[key] !== undefined && params[key] !== null) {
+          httpParams = httpParams.set(key, params[key].toString());
+        }
+      });
+    }
+    return this.http.get<T>(`${environment.apiUrl}${path}`, {
+      headers: this.getHeaders(),
+      params: httpParams,
+    });
   }
 
-  post<T>(path: string, body: any): Observable<T> {
-    return this.http.post<T>(`${environment.apiUrl}${path}`, body, { headers: this.headers() });
+  post<T>(path: string, body: any = {}): Observable<T> {
+    return this.http.post<T>(`${environment.apiUrl}${path}`, body, {
+      headers: this.getHeaders(),
+    });
   }
 
-  put<T>(path: string, body: any): Observable<T> {
-    return this.http.put<T>(`${environment.apiUrl}${path}`, body, { headers: this.headers() });
+  put<T>(path: string, body: any = {}): Observable<T> {
+    return this.http.put<T>(`${environment.apiUrl}${path}`, body, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  delete<T>(path: string): Observable<T> {
+    return this.http.delete<T>(`${environment.apiUrl}${path}`, {
+      headers: this.getHeaders(),
+    });
   }
 }

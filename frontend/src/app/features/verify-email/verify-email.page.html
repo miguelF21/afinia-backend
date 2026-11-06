@@ -1,0 +1,27 @@
+<ion-content [fullscreen]="true">
+  <app-auth-layout>
+    <div class="mail-art"><span class="ring r1"></span><span class="ring r2"></span><span class="env"><ion-icon name="mail-open"></ion-icon></span></div>
+
+    <header class="intro">
+      <h1>Verifica tu correo</h1>
+      <p>Enviamos un enlace de verificación a <b>{{ email }}</b>. Ábrelo o pega aquí el código que aparece en el mensaje.</p>
+    </header>
+
+    <form (ngSubmit)="onVerify()">
+      <div class="field">
+        <label for="token">Código de verificación</label>
+        <div class="field-box"><ion-icon name="key-outline"></ion-icon>
+          <input id="token" type="text" placeholder="Pega tu código" [(ngModel)]="token" name="token" autocomplete="one-time-code" /></div>
+      </div>
+      <button class="btn btn-primary btn-block" type="submit" [disabled]="!token.trim()">Verificar correo <ion-icon name="checkmark-circle"></ion-icon></button>
+    </form>
+
+    <div class="resend">
+      <span>¿No te llegó?</span>
+      <button type="button" (click)="resend()" [disabled]="cooldown > 0">{{ cooldown > 0 ? 'Reenviar en ' + cooldown + ' s' : 'Reenviar correo' }}</button>
+    </div>
+    <p class="ok" *ngIf="resent"><ion-icon name="checkmark-circle"></ion-icon>Solicitud de reenvío registrada. Revisa también tu carpeta de spam.</p>
+
+    <p class="switch"><a routerLink="/register"><ion-icon name="arrow-back"></ion-icon>Usar otro correo</a></p>
+  </app-auth-layout>
+</ion-content>
