@@ -4,23 +4,26 @@
 
     <header class="intro">
       <h1>Verifica tu correo</h1>
-      <p>Enviamos un enlace de verificación a <b>{{ email }}</b>. Ábrelo o pega aquí el código que aparece en el mensaje.</p>
+      <p>Tu cuenta para <b>{{ email }}</b> ha sido creada con éxito.</p>
     </header>
 
     <form (ngSubmit)="onVerify()">
       <div class="field">
         <label for="token">Código de verificación</label>
         <div class="field-box"><ion-icon name="key-outline"></ion-icon>
-          <input id="token" type="text" placeholder="Pega tu código" [(ngModel)]="token" name="token" autocomplete="one-time-code" /></div>
+          <input id="token" type="text" placeholder="Pega tu código (opcional)" [(ngModel)]="token" name="token" autocomplete="one-time-code" /></div>
       </div>
-      <button class="btn btn-primary btn-block" type="submit" [disabled]="!token.trim()">Verificar correo <ion-icon name="checkmark-circle"></ion-icon></button>
+      <button class="btn btn-primary btn-block" type="submit" [disabled]="!token.trim()">Verificar código <ion-icon name="checkmark-circle"></ion-icon></button>
     </form>
 
-    <div class="resend">
-      <span>¿No te llegó?</span>
-      <button type="button" (click)="resend()" [disabled]="cooldown > 0">{{ cooldown > 0 ? 'Reenviar en ' + cooldown + ' s' : 'Reenviar correo' }}</button>
+    <button type="button" class="btn btn-block" routerLink="/onboarding" style="margin-top: 14px; background: #fdf2f4; color: var(--af-raspberry); font-weight: 700;">
+      Continuar a configurar mi perfil <ion-icon name="arrow-forward"></ion-icon>
+    </button>
+
+    <div class="resend" style="margin-top: 20px;">
+      <span>¿Prefieres iniciar sesión?</span>
+      <a routerLink="/login" style="color: var(--af-raspberry); font-weight: 700; text-decoration: none; margin-left: 6px;">Ir a Ingresar</a>
     </div>
-    <p class="ok" *ngIf="resent"><ion-icon name="checkmark-circle"></ion-icon>Solicitud de reenvío registrada. Revisa también tu carpeta de spam.</p>
 
     <p class="switch"><a routerLink="/register"><ion-icon name="arrow-back"></ion-icon>Usar otro correo</a></p>
   </app-auth-layout>
