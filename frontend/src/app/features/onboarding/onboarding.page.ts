@@ -17,6 +17,15 @@ export class OnboardingPage {
   steps = ['Sobre ti', 'Intereses', 'Personalidad'];
 
   genders = ['Masculino', 'Femenino', 'Otro'];
+  interestedIn = 'todos';
+  interestedOptions = [
+    { value: 'masculino', label: 'Hombres' },
+    { value: 'femenino', label: 'Mujeres' },
+    { value: 'todos', label: 'Todos' },
+  ];
+  selectedFile: File | null = null;
+  photoPreview: string | null = null;
+
   catalog = INTEREST_CATALOG;
   interests: string[] = [];
   loading = false;
@@ -59,6 +68,18 @@ export class OnboardingPage {
 
   toggleInterest(t: string) {
     this.interests = this.interests.includes(t) ? this.interests.filter(x => x !== t) : [...this.interests, t].slice(0, 8);
+  }
+
+  onFileSelected(event: any) {
+    const file = event.target?.files?.[0];
+    if (file) {
+      this.selectedFile = file;
+      const reader = new FileReader();
+      reader.onload = () => {
+        this.photoPreview = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
   }
 
   nextStep() {
@@ -107,34 +128,57 @@ export class OnboardingPage {
     // 1. Guardar perfil real en la base de datos
     this.api.post('/profile', profilePayload).subscribe({
       next: () => {
-        // 2. Guardar preferencias de búsqueda
+        // 2. Guardar preferencias de búsqueda según lo elegido
+        let interestedGenders = ['masculino', 'femenino', 'otro'];
+        if (this.interestedIn === 'masculino') interestedGenders = ['masculino'];
+        else if (this.interestedIn === 'femenino') interestedGenders = ['femenino'];
+
         const prefPayload = {
-          interested_in_genders: ['masculino', 'femenino', 'otro'],
+          interested_in_genders: interestedGenders,
           min_age: Math.max(18, (this.profile.age || 22) - 5),
           max_age: Math.min(80, (this.profile.age || 22) + 10),
           target_relationship_type: this.analytics.target || 'amistad',
         };
 
-        this.api.put('/profile/discovery-preferences', prefPayload).subscribe({
-          next: () => {
+        const uploadAndFinish = () => {
+          Object.assign(this.user.profile, this.profile, { interests: this.interests });
+          Object.assign(this.user.analytics, this.analytics);
+          this.user.save();
+
+          if (this.selectedFile) {
+            const fd = new FormData();
+            fd.append('file', this.selectedFile);
+            fd.append('is_primary', 'true');
+            this.api.post('/profile/photos', fd).subscribe({
+              next: () => {
+                this.loading = false;
+                this.showToast('¡Perfil y foto configurados con éxito!');
+                this.router.navigate(['/dashboard']);
+              },
+              error: () => {
+                this.loading = false;
+                this.showToast('Perfil guardado. Podrás gestionar tu foto más tarde.');
+                this.router.navigate(['/dashboard']);
+              }
+            });
+          } else {
             this.loading = false;
-            Object.assign(this.user.profile, this.profile, { interests: this.interests });
-            Object.assign(this.user.analytics, this.analytics);
-            this.user.save();
             this.showToast('¡Perfil configurado con éxito!');
             this.router.navigate(['/dashboard']);
+          }
+        };
+
+        this.api.put('/profile/discovery-preferences', prefPayload).subscribe({
+          next: () => {
+            uploadAndFinish();
           },
-          error: (err) => {
-            this.loading = false;
-            // Si el perfil ya se creó, permitir avanzar al dashboard
-            this.user.save();
-            this.router.navigate(['/dashboard']);
+          error: () => {
+            uploadAndFinish();
           }
         });
       },
       error: async (err) => {
         this.loading = false;
-        // Si el perfil ya existe (409 CONFLICT), actualizar o avanzar
         if (err.status === 409) {
           this.router.navigate(['/dashboard']);
           return;

@@ -19,8 +19,30 @@
         <div class="field"><label for="n">Nombre</label>
           <div class="field-box"><ion-icon name="person-outline"></ion-icon><input id="n" type="text" placeholder="Tu nombre" [(ngModel)]="profile.first_name" name="first_name" /></div></div>
 
-        <div class="field"><span class="field-label">Género</span>
+        <!-- Foto de perfil -->
+        <div class="field">
+          <span class="field-label">Foto de perfil (Obligatoria para descubrir personas)</span>
+          <div class="photo-uploader">
+            <input type="file" #photoInput accept="image/jpeg,image/png,image/webp" (change)="onFileSelected($event)" style="display: none;" />
+            <div class="preview-box" (click)="photoInput.click()">
+              <img *ngIf="photoPreview" [src]="photoPreview" alt="Vista previa de foto" class="preview-img" />
+              <div *ngIf="!photoPreview" class="placeholder">
+                <ion-icon name="camera-outline"></ion-icon>
+                <span>Subir foto</span>
+              </div>
+            </div>
+            <small class="hint">Una fotografía de perfil es necesaria para activar tu cuenta y poder ver a otros usuarios.</small>
+          </div>
+        </div>
+
+        <div class="field"><span class="field-label">Tu género</span>
           <div class="seg"><button type="button" *ngFor="let g of genders" [class.on]="profile.gender === g" (click)="profile.gender = g">{{ g }}</button></div></div>
+
+        <div class="field"><span class="field-label">¿A quién te interesa conocer?</span>
+          <div class="seg">
+            <button type="button" *ngFor="let opt of interestedOptions" [class.on]="interestedIn === opt.value" (click)="interestedIn = opt.value">{{ opt.label }}</button>
+          </div>
+        </div>
 
         <div class="two">
           <div class="field"><label for="a">Edad</label>

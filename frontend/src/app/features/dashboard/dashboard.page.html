@@ -26,7 +26,7 @@
   <div class="stage rise-2" *ngIf="currentProfile as p; else empty">
     <!-- Tarjeta de fondo -->
     <article class="card-p back" *ngIf="nextProfile as n" [class.lift]="leaving">
-      <app-photo [tone]="n.tone" [name]="n.name"></app-photo>
+      <app-photo [tone]="n.tone" [name]="n.name" [src]="n.photoUrl"></app-photo>
       <app-affinity-badge class="aff" [value]="n.affinity"></app-affinity-badge>
       <div class="shade"></div>
       <div class="info"><h3>{{ n.name }}, {{ n.age }}</h3><p><ion-icon name="location"></ion-icon>{{ n.city }}</p></div>
@@ -34,14 +34,14 @@
 
     <!-- Tarjeta principal -->
     <article class="card-p front" [class.go-like]="leaving === 'like'" [class.go-pass]="leaving === 'pass'" [class.open]="expanded" (click)="expanded = !expanded" tabindex="0" (keydown.enter)="expanded = !expanded" [attr.aria-label]="'Perfil de ' + p.name">
-      <app-photo [tone]="p.tone" [name]="p.name"></app-photo>
+      <app-photo [tone]="p.tone" [name]="p.name" [src]="p.photoUrl"></app-photo>
       <span class="online" *ngIf="p.online"><i></i>En línea</span>
       <app-affinity-badge class="aff" [value]="p.affinity"></app-affinity-badge>
       <span class="stamp like">ME GUSTA</span><span class="stamp nope">PASO</span>
       <div class="shade"></div>
       <div class="info">
         <h3>{{ p.name }}, {{ p.age }}</h3>
-        <p><ion-icon name="location"></ion-icon>{{ p.city }}</p>
+        <p><ion-icon name="location"></ion-icon>{{ p.city }} <span class="chip glass" style="margin-left: 6px; padding: 1px 7px; font-size: 11px;" *ngIf="p.relationshipGoal">{{ p.relationshipGoal }}</span></p>
         <div class="tags"><span class="chip glass" *ngFor="let t of p.interests.slice(0, 3)">{{ t }}</span><span class="chip glass" *ngIf="p.interests.length > 3">+{{ p.interests.length - 3 }}</span></div>
         <div class="more">
           <p class="bio">{{ p.bio }}</p>
@@ -61,13 +61,25 @@
   </div>
 
   <ng-template #empty>
-    <div class="empty card rise-2">
-      <span class="emp-ico"><ion-icon name="sparkles"></ion-icon></span>
-      <h2>{{ filtersActive || data.query ? 'Nadie coincide con tu búsqueda' : 'Has visto todos los perfiles' }}</h2>
-      <p>{{ filtersActive || data.query ? 'Prueba con otros filtros para ver más personas compatibles.' : 'Vuelve más tarde para descubrir nuevas personas compatibles contigo.' }}</p>
-      <button class="btn btn-primary" *ngIf="filtersActive || data.query" (click)="resetFilters()">Quitar filtros</button>
-      <a class="btn btn-soft" routerLink="/matches" *ngIf="!(filtersActive || data.query)"><ion-icon name="heart"></ion-icon>Ver mis matches</a>
+    <div class="empty card rise-2" *ngIf="data.discoveryError; else standardEmpty">
+      <span class="emp-ico"><ion-icon name="alert-circle-outline"></ion-icon></span>
+      <h2>Completa tu perfil</h2>
+      <p>{{ data.discoveryError }}</p>
+      <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px;">
+        <a class="btn btn-primary" routerLink="/onboarding"><ion-icon name="create-outline"></ion-icon>Completar perfil</a>
+        <a class="btn btn-soft" routerLink="/profile"><ion-icon name="person-outline"></ion-icon>Ver mi perfil</a>
+      </div>
     </div>
+
+    <ng-template #standardEmpty>
+      <div class="empty card rise-2">
+        <span class="emp-ico"><ion-icon name="sparkles"></ion-icon></span>
+        <h2>{{ filtersActive || data.query ? 'Nadie coincide con tu búsqueda' : 'Has visto todos los perfiles' }}</h2>
+        <p>{{ filtersActive || data.query ? 'Prueba con otros filtros para ver más personas compatibles.' : 'Vuelve más tarde para descubrir nuevas personas compatibles contigo.' }}</p>
+        <button class="btn btn-primary" *ngIf="filtersActive || data.query" (click)="resetFilters()">Quitar filtros</button>
+        <a class="btn btn-soft" routerLink="/matches" *ngIf="!(filtersActive || data.query)"><ion-icon name="heart"></ion-icon>Ver mis matches</a>
+      </div>
+    </ng-template>
   </ng-template>
 
   <div class="banner rise-3" *ngIf="currentProfile as p">
@@ -85,9 +97,9 @@
     <h2>¡Es un match!</h2>
     <p>Ahora pueden empezar a conocerse</p>
     <div class="duo">
-      <span class="face l"><app-avatar [name]="user.displayName" [tone]="0" [size]="132"></app-avatar></span>
+      <span class="face l"><app-avatar [name]="user.displayName" [src]="user.profile.photoUrl" [tone]="0" [size]="132"></app-avatar></span>
       <span class="heart"><ion-icon name="heart"></ion-icon></span>
-      <span class="face r"><app-avatar [name]="m.name" [tone]="m.tone" [size]="132"></app-avatar></span>
+      <span class="face r"><app-avatar [name]="m.name" [src]="m.photoUrl" [tone]="m.tone" [size]="132"></app-avatar></span>
     </div>
     <p class="aff-line"><b>{{ m.affinity }}%</b> de afinidad con {{ m.name }}</p>
     <button class="btn btn-primary btn-block" (click)="goChat()">Enviar mensaje</button>

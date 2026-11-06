@@ -14,7 +14,7 @@
   <div class="grid" *ngIf="list.length; else none">
     <article class="m-card" *ngFor="let p of list; let i = index" [style.animation-delay.ms]="i * 60">
       <div class="pic">
-        <app-photo [tone]="p.tone" [name]="p.name"></app-photo>
+        <app-photo [tone]="p.tone" [name]="p.name" [src]="p.photoUrl"></app-photo>
         <span class="new" *ngIf="isNew(p)">Nuevo</span>
         <app-affinity-badge class="aff" [value]="p.affinity"></app-affinity-badge>
         <div class="shade"></div>

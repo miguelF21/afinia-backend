@@ -8,10 +8,11 @@ import { AuthService } from './auth.service';
 export class ApiService {
   constructor(private http: HttpClient, private auth: AuthService) {}
 
-  private getHeaders(): HttpHeaders {
-    let headers = new HttpHeaders({
-      'Content-Type': 'application/json',
-    });
+  private getHeaders(isFormData: boolean = false): HttpHeaders {
+    let headers = new HttpHeaders();
+    if (!isFormData) {
+      headers = headers.set('Content-Type', 'application/json');
+    }
     const token = this.auth.getToken();
     if (token) {
       headers = headers.set('Authorization', `Bearer ${token}`);
@@ -35,14 +36,16 @@ export class ApiService {
   }
 
   post<T>(path: string, body: any = {}): Observable<T> {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
     return this.http.post<T>(`${environment.apiUrl}${path}`, body, {
-      headers: this.getHeaders(),
+      headers: this.getHeaders(isFormData),
     });
   }
 
   put<T>(path: string, body: any = {}): Observable<T> {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
     return this.http.put<T>(`${environment.apiUrl}${path}`, body, {
-      headers: this.getHeaders(),
+      headers: this.getHeaders(isFormData),
     });
   }
 

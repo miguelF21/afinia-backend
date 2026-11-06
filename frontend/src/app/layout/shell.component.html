@@ -42,7 +42,7 @@
 
       <div class="me">
         <button class="me-btn" (click)="menuOpen = !menuOpen" aria-haspopup="menu" [attr.aria-expanded]="menuOpen">
-          <app-avatar [name]="user.displayName" [tone]="0" [size]="40"></app-avatar>
+          <app-avatar [name]="user.displayName" [src]="user.profile.photoUrl" [tone]="0" [size]="40"></app-avatar>
           <ion-icon name="chevron-down" class="chev" [class.up]="menuOpen"></ion-icon>
         </button>
         <div class="menu" *ngIf="menuOpen" role="menu">

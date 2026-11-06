@@ -94,7 +94,11 @@ def register_user(data: dict, ip_address: str = None) -> dict:
 
     # Persistencia atómica de usuario y consentimientos
     pwd_hash = hash_password(password)
-    auto_verify = current_app.config.get('MAIL_BACKEND') == 'in_memory' or not current_app.config.get('EMAIL_VERIFICATION_REQUIRED', False)
+    auto_verify = current_app.config.get('AUTO_VERIFY_EMAIL', False) or (
+        not current_app.config.get('TESTING', False) and (
+            current_app.config.get('MAIL_BACKEND') == 'in_memory' or not current_app.config.get('EMAIL_VERIFICATION_REQUIRED', False)
+        )
+    )
     new_user = User(
         id=str(uuid.uuid4()),
         email=email,

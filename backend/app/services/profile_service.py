@@ -478,17 +478,22 @@ def upload_profile_photo(user: User, file_storage, is_primary_requested: bool = 
             # Desmarcar atómicamente fotos principales previas
             ProfilePhoto.query.filter_by(profile_id=profile.id, is_primary=True).update({'is_primary': False})
 
+        auto_approve = current_app.config.get('AUTO_APPROVE_PHOTOS', False) and not current_app.config.get('TESTING', False)
+        initial_status = 'ready' if auto_approve else 'pending'
+
         new_photo = ProfilePhoto(
             profile_id=profile.id,
             storage_key=storage_key,
             position=next_position,
             is_primary=should_be_primary,
-            status='pending',
+            status=initial_status,
             file_name=getattr(file_storage, 'filename', f'photo.{ext}'),
             content_type=mime,
             byte_size=len(clean_bytes)
         )
         db.session.add(new_photo)
+        if initial_status == 'ready':
+            sync_user_lifecycle_status(user)
         db.session.commit()
         return serialize_photo(new_photo)
     except Exception as e:

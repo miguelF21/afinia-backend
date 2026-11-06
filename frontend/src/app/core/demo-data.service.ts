@@ -18,6 +18,7 @@ export class DemoDataService {
 
   loadingQueue = false;
   loadingMatches = false;
+  discoveryError: string | null = null;
 
   constructor(private api: ApiService, private auth: AuthService) {
     this.refreshAll();
@@ -36,13 +37,24 @@ export class DemoDataService {
     this.api.get<{ data: { items: any[] } }>('/match/potential').subscribe({
       next: (res) => {
         this.loadingQueue = false;
+        this.discoveryError = null;
         if (res?.data?.items && Array.isArray(res.data.items)) {
+          const token = this.auth.getToken();
           this.queue = res.data.items.map((item, index) => {
             const toneIdx = index % 6;
+            let photoUrl: string | undefined;
+            if (Array.isArray(item.photos) && item.photos.length) {
+              const primary = item.photos.find((p: any) => p.is_primary) || item.photos[0];
+              if (primary?.url) {
+                photoUrl = token ? (primary.url.includes('?') ? `${primary.url}&token=${token}` : `${primary.url}?token=${token}`) : primary.url;
+              }
+            }
             return {
               id: item.user_id || item.target_user_id || item.id,
               name: item.first_name || 'Usuario',
               age: item.age || 22,
+              gender: item.gender,
+              relationshipGoal: item.relationship_goal,
               city: item.city || 'Villavicencio, Meta',
               affinity: Math.round(item.compatibility_score ? item.compatibility_score * 100 : (item.affinity || 85)),
               online: item.online ?? true,
@@ -50,12 +62,20 @@ export class DemoDataService {
               likesYou: !!item.likes_you,
               bio: item.bio || 'Conectando afinidades en Afinia.',
               interests: Array.isArray(item.interests) && item.interests.length ? item.interests : ['Viajes', 'Música', 'Naturaleza'],
+              photoUrl,
             };
           });
+        } else {
+          this.queue = [];
         }
       },
-      error: () => {
+      error: (err) => {
         this.loadingQueue = false;
+        if (err?.status === 403) {
+          this.discoveryError = err.error?.error?.message || 'Tu perfil requiere completar información para acceder a descubrimiento.';
+        } else {
+          this.discoveryError = null;
+        }
       }
     });
   }
@@ -84,16 +104,27 @@ export class DemoDataService {
             if (m.unread_count) {
               this.unread[matchId] = m.unread_count;
             }
+            const token = this.auth.getToken();
+            let partnerPhotoUrl: string | undefined;
+            if (Array.isArray(partner.photos) && partner.photos.length) {
+              const pPhoto = partner.photos.find((p: any) => p.is_primary) || partner.photos[0];
+              if (pPhoto?.url) {
+                partnerPhotoUrl = token ? (pPhoto.url.includes('?') ? `${pPhoto.url}&token=${token}` : `${pPhoto.url}?token=${token}`) : pPhoto.url;
+              }
+            }
             return {
               id: matchId,
               name: partner.first_name || 'Match',
               age: partner.age || 23,
+              gender: partner.gender,
+              relationshipGoal: partner.relationship_goal,
               city: partner.city || 'Villavicencio, Meta',
               affinity: Math.round(partner.compatibility_score ? partner.compatibility_score * 100 : 88),
               online: partner.online ?? true,
               tone: idx % 6,
               bio: partner.bio || '',
               interests: partner.interests || ['Fotografía', 'Cine'],
+              photoUrl: partnerPhotoUrl,
             };
           });
         }

@@ -11,6 +11,10 @@ export interface Person {
   tone: number;
   /** Solo para la demostración visual del "¡Es un match!". */
   likesYou?: boolean;
+  photoUrl?: string;
+  photos?: string[];
+  gender?: string;
+  relationshipGoal?: string;
 }
 
 export interface ChatMessage {
@@ -29,6 +33,7 @@ export interface MyProfile {
   bio: string;
   interests: string[];
   email: string;
+  photoUrl?: string;
 }
 
 export interface MyAnalytics {

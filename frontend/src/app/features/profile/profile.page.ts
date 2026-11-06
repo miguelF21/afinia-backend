@@ -53,6 +53,13 @@ export class ProfilePage implements OnInit {
           if (Array.isArray(d.interests) && d.interests.length) {
             this.user.profile.interests = d.interests;
           }
+          if (Array.isArray(d.photos) && d.photos.length) {
+            const token = this.auth.getToken();
+            const primary = d.photos.find((ph: any) => ph.is_primary) || d.photos[0];
+            if (primary?.url) {
+              this.user.profile.photoUrl = token ? (primary.url.includes('?') ? `${primary.url}&token=${token}` : `${primary.url}?token=${token}`) : primary.url;
+            }
+          }
           this.user.save();
         }
       },
@@ -110,6 +117,30 @@ export class ProfilePage implements OnInit {
 
   toggle(t: string) {
     this.draftInterests = this.draftInterests.includes(t) ? this.draftInterests.filter(x => x !== t) : [...this.draftInterests, t].slice(0, 8);
+  }
+
+  uploadProfilePhoto(event: any) {
+    const file = event.target?.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('is_primary', 'true');
+    this.api.post<{ data: any }>('/profile/photos', fd).subscribe({
+      next: (res) => {
+        const token = this.auth.getToken();
+        const url = res?.data?.url;
+        if (url) {
+          this.user.profile.photoUrl = token ? (url.includes('?') ? `${url}&token=${token}` : `${url}?token=${token}`) : url;
+          this.user.save();
+        }
+        this.showToast('¡Foto de perfil actualizada con éxito!');
+        this.loadProfile();
+      },
+      error: (err) => {
+        const msg = err.error?.error?.message || 'Error al subir la fotografía.';
+        this.showToast(msg);
+      }
+    });
   }
 
   logout() {

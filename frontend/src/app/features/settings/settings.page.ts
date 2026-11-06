@@ -1,6 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { UserStateService } from '../../core/user-state.service';
+import { ApiService } from '../../core/services/api.service';
+import { AuthService } from '../../core/services/auth.service';
 
 interface Toggle { key: 'notifyMessages' | 'notifyMatches' | 'notifyNews' | 'showOnline' | 'showCity' | 'visible'; title: string; desc: string; icon: string; }
 
@@ -10,9 +12,16 @@ interface Toggle { key: 'notifyMessages' | 'notifyMatches' | 'notifyNews' | 'sho
   styleUrls: ['./settings.page.scss'],
   standalone: false,
 })
-export class SettingsPage {
+export class SettingsPage implements OnInit {
   saved = false;
   private timer?: ReturnType<typeof setTimeout>;
+
+  interestedIn = 'todos';
+  interestedOptions = [
+    { value: 'masculino', label: 'Hombres' },
+    { value: 'femenino', label: 'Mujeres' },
+    { value: 'todos', label: 'Todos' },
+  ];
 
   notifications: Toggle[] = [
     { key: 'notifyMessages', title: 'Mensajes nuevos', desc: 'Avísame cuando alguien me escriba', icon: 'chatbubble-outline' },
@@ -31,15 +40,58 @@ export class SettingsPage {
   ];
   openFaq = -1;
 
-  constructor(public user: UserStateService, private router: Router) {}
+  constructor(
+    public user: UserStateService,
+    private router: Router,
+    private api: ApiService,
+    private auth: AuthService
+  ) {}
+
+  ngOnInit() {
+    if (this.auth.isAuthenticated()) {
+      this.api.get<{ data: any }>('/profile/discovery-preferences').subscribe({
+        next: (res) => {
+          if (res?.data) {
+            const genders = res.data.interested_in_genders || [];
+            if (genders.length === 1 && genders[0] === 'masculino') this.interestedIn = 'masculino';
+            else if (genders.length === 1 && genders[0] === 'femenino') this.interestedIn = 'femenino';
+            else this.interestedIn = 'todos';
+            if (res.data.min_age) this.s.ageMin = res.data.min_age;
+            if (res.data.max_age) this.s.ageMax = res.data.max_age;
+          }
+        },
+        error: () => {}
+      });
+    }
+  }
+
   get s() { return this.user.settings; }
 
+  setInterestedIn(val: string) {
+    this.interestedIn = val;
+    this.change();
+  }
+
   change() {
-    // TODO: persistir preferencias en el backend (PUT /api/v1/profile/discovery-preferences)
     this.user.save();
     this.saved = true;
     clearTimeout(this.timer);
     this.timer = setTimeout(() => (this.saved = false), 1800);
+
+    if (this.auth.isAuthenticated()) {
+      let genders = ['masculino', 'femenino', 'otro'];
+      if (this.interestedIn === 'masculino') genders = ['masculino'];
+      else if (this.interestedIn === 'femenino') genders = ['femenino'];
+
+      this.api.put('/profile/discovery-preferences', {
+        interested_in_genders: genders,
+        min_age: this.s.ageMin,
+        max_age: this.s.ageMax,
+      }).subscribe({
+        next: () => {},
+        error: () => {}
+      });
+    }
   }
   setAge(ev: any) { const v = ev.detail.value; if (v && typeof v === 'object') { this.s.ageMin = v.lower; this.s.ageMax = v.upper; this.change(); } }
   setDistance(ev: any) { this.s.distanceKm = ev.detail.value; this.change(); }

@@ -3,7 +3,13 @@
   <div class="hero card rise">
     <div class="cover"><span class="o o1"></span><span class="o o2"></span><ion-icon class="h h1" name="heart"></ion-icon><ion-icon class="h h2" name="heart"></ion-icon></div>
     <div class="hero-in">
-      <app-avatar class="av" [name]="user.displayName" [tone]="0" [size]="124" [online]="true"></app-avatar>
+      <div style="position: relative; display: inline-block;">
+        <app-avatar class="av" [name]="user.displayName" [src]="p.photoUrl" [tone]="0" [size]="124" [online]="true"></app-avatar>
+        <input type="file" #photoUploadInput accept="image/jpeg,image/png,image/webp" (change)="uploadProfilePhoto($event)" style="display: none;" />
+        <button type="button" class="btn-change-photo" (click)="photoUploadInput.click()" title="Cambiar foto de perfil" style="position: absolute; right: 0; bottom: 6px; width: 36px; height: 36px; border-radius: 50%; border: 2px solid #fff; background: var(--af-raspberry); color: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
+          <ion-icon name="camera-outline" style="font-size: 18px;"></ion-icon>
+        </button>
+      </div>
       <div class="id">
         <h1>{{ user.displayName }}<span *ngIf="p.age">, {{ p.age }}</span></h1>
         <p class="handle">{{ user.handle }}</p>

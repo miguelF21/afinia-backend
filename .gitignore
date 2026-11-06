@@ -38,3 +38,5 @@ scratch/
 backend/backups/
 backups/
 *.zip
+.agents/
+skills-lock.json

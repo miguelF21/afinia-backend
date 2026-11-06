@@ -16,15 +16,19 @@ def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         auth_header = request.headers.get('Authorization', '')
+        token = None
         
-        if not auth_header:
+        if auth_header:
+            parts = auth_header.split()
+            if len(parts) == 2 and parts[0].lower() == 'bearer':
+                token = parts[1]
+            else:
+                return api_error('UNAUTHORIZED', 'Formato de cabecera inválido. Debe ser: Bearer <token>.', 401)
+        elif request.args.get('token'):
+            token = request.args.get('token')
+
+        if not token:
             return api_error('UNAUTHORIZED', 'Cabecera Authorization ausente.', 401)
-
-        parts = auth_header.split()
-        if len(parts) != 2 or parts[0].lower() != 'bearer':
-            return api_error('UNAUTHORIZED', 'Formato de cabecera inválido. Debe ser: Bearer <token>.', 401)
-
-        token = parts[1]
 
         try:
             payload = decode_access_token(token, current_app.config['SECRET_KEY'])

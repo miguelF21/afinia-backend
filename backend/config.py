@@ -16,6 +16,9 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # Auto-aprobación de fotos para desarrollo / testing cuando no hay moderación asíncrona manual
+    AUTO_APPROVE_PHOTOS = os.environ.get('AUTO_APPROVE_PHOTOS', 'false').lower() in ('true', '1')
+
     # Parámetros de sesión y seguridad de tokens
     JWT_ACCESS_TOKEN_EXPIRES = int(os.environ.get('JWT_ACCESS_TOKEN_EXPIRES', 900))
     REFRESH_TOKEN_EXPIRES_DAYS = int(os.environ.get('REFRESH_TOKEN_EXPIRES_DAYS', 30))
