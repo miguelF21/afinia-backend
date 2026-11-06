@@ -18,11 +18,6 @@ export class RegisterPage {
   showPassword = false;
   loading = false;
 
-  checkLength = false;
-  checkCases = false;
-  checkNumber = false;
-  strength = 0;
-
   constructor(
     private router: Router,
     private user: UserStateService,
@@ -31,20 +26,28 @@ export class RegisterPage {
   ) { }
 
   get emailOk(): boolean {
-    return /^\S+@\S+\.\S+$/.test(this.email);
+    return /^\S+@\S+\.\S+$/.test((this.email || '').trim());
   }
 
-  onPasswordChange() {
-    const p = this.password || '';
-    this.checkLength = p.length >= 8;
-    this.checkCases = /[A-Z]/.test(p) && /[a-z]/.test(p);
-    this.checkNumber = /\d/.test(p);
+  get checkLength(): boolean {
+    return (this.password || '').length >= 8;
+  }
 
+  get checkCases(): boolean {
+    const p = this.password || '';
+    return /[A-Z]/.test(p) && /[a-z]/.test(p);
+  }
+
+  get checkNumber(): boolean {
+    return /\d/.test(this.password || '');
+  }
+
+  get strength(): number {
     let s = 0;
     if (this.checkLength) s++;
     if (this.checkCases) s++;
     if (this.checkNumber) s++;
-    this.strength = s;
+    return s;
   }
 
   get valid(): boolean {
@@ -72,14 +75,40 @@ export class RegisterPage {
   }
 
   onRegister() {
-    if (!this.valid || this.loading) return;
+    if (this.loading) return;
+
+    if (!this.name.trim()) {
+      this.showError('Por favor, ingresa tu nombre completo.');
+      return;
+    }
+    if (!this.emailOk) {
+      this.showError('Por favor, ingresa un correo electrónico válido.');
+      return;
+    }
+    if (!this.checkLength) {
+      this.showError('La contraseña debe tener al menos 8 caracteres.');
+      return;
+    }
+    if (!this.checkCases) {
+      this.showError('La contraseña debe incluir mayúsculas y minúsculas.');
+      return;
+    }
+    if (!this.checkNumber) {
+      this.showError('La contraseña debe incluir al menos un número.');
+      return;
+    }
+    if (!this.acceptTerms) {
+      this.showError('Debes aceptar los Términos de servicio y la Política de privacidad.');
+      return;
+    }
+
     this.loading = true;
 
-    this.auth.register(this.email, this.password).subscribe({
+    this.auth.register(this.email.trim(), this.password).subscribe({
       next: () => {
         this.loading = false;
         this.user.profile.first_name = this.name.trim().split(' ')[0];
-        this.user.profile.email = this.email;
+        this.user.profile.email = this.email.trim();
         this.user.save();
         this.showSuccess('Cuenta creada exitosamente. Revisa tu correo.');
         this.router.navigate(['/verify-email']);
