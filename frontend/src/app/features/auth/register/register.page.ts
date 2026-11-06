@@ -18,6 +18,11 @@ export class RegisterPage {
   showPassword = false;
   loading = false;
 
+  checkLength = false;
+  checkCases = false;
+  checkNumber = false;
+  strength = 0;
+
   constructor(
     private router: Router,
     private user: UserStateService,
@@ -25,16 +30,26 @@ export class RegisterPage {
     private toastController: ToastController
   ) { }
 
-  get emailOk(): boolean { return /^\S+@\S+\.\S+$/.test(this.email); }
-  get checks() {
-    return [
-      { ok: this.password.length >= 8, label: '8 caracteres' },
-      { ok: /[A-Z]/.test(this.password) && /[a-z]/.test(this.password), label: 'Mayúscula y minúscula' },
-      { ok: /\d/.test(this.password), label: 'Un número' },
-    ];
+  get emailOk(): boolean {
+    return /^\S+@\S+\.\S+$/.test(this.email);
   }
-  get strength(): number { return this.checks.filter(c => c.ok).length; }
-  get valid(): boolean { return !!this.name.trim() && this.emailOk && this.strength === 3 && this.acceptTerms && !this.loading; }
+
+  onPasswordChange() {
+    const p = this.password || '';
+    this.checkLength = p.length >= 8;
+    this.checkCases = /[A-Z]/.test(p) && /[a-z]/.test(p);
+    this.checkNumber = /\d/.test(p);
+
+    let s = 0;
+    if (this.checkLength) s++;
+    if (this.checkCases) s++;
+    if (this.checkNumber) s++;
+    this.strength = s;
+  }
+
+  get valid(): boolean {
+    return !!this.name.trim() && this.emailOk && this.strength === 3 && this.acceptTerms && !this.loading;
+  }
 
   async showError(message: string) {
     const toast = await this.toastController.create({
@@ -61,7 +76,7 @@ export class RegisterPage {
     this.loading = true;
 
     this.auth.register(this.email, this.password).subscribe({
-      next: (res) => {
+      next: () => {
         this.loading = false;
         this.user.profile.first_name = this.name.trim().split(' ')[0];
         this.user.profile.email = this.email;
