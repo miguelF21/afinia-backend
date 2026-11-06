@@ -106,12 +106,23 @@ export class RegisterPage {
 
     this.auth.register(this.email.trim(), this.password).subscribe({
       next: () => {
-        this.loading = false;
         this.user.profile.first_name = this.name.trim().split(' ')[0];
         this.user.profile.email = this.email.trim();
         this.user.save();
-        this.showSuccess('Cuenta creada exitosamente. Revisa tu correo.');
-        this.router.navigate(['/verify-email']);
+        
+        // Auto-login y paso directo al Onboarding
+        this.auth.login(this.email.trim(), this.password).subscribe({
+          next: () => {
+            this.loading = false;
+            this.showSuccess('¡Cuenta creada con éxito! Configura tu perfil.');
+            this.router.navigate(['/onboarding']);
+          },
+          error: () => {
+            this.loading = false;
+            this.showSuccess('¡Cuenta creada con éxito! Inicia sesión.');
+            this.router.navigate(['/login']);
+          }
+        });
       },
       error: async (err) => {
         this.loading = false;
