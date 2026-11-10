@@ -11,14 +11,10 @@
       <div class="field">
         <label for="token">Código de verificación</label>
         <div class="field-box"><ion-icon name="key-outline"></ion-icon>
-          <input id="token" type="text" placeholder="Pega tu código (opcional)" [(ngModel)]="token" name="token" autocomplete="one-time-code" /></div>
+          <input id="token" type="text" placeholder="Ingresa tu código de verificación" [(ngModel)]="token" name="token" autocomplete="one-time-code" /></div>
       </div>
       <button class="btn btn-primary btn-block" type="submit" [disabled]="!token.trim()">Verificar código <ion-icon name="checkmark-circle"></ion-icon></button>
     </form>
-
-    <button type="button" class="btn btn-block" routerLink="/onboarding" style="margin-top: 14px; background: #fdf2f4; color: var(--af-raspberry); font-weight: 700;">
-      Continuar a configurar mi perfil <ion-icon name="arrow-forward"></ion-icon>
-    </button>
 
     <div class="resend" style="margin-top: 20px;">
       <span>¿Prefieres iniciar sesión?</span>

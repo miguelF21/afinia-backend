@@ -18,6 +18,7 @@ export class ProfilePage implements OnInit {
   catalog = INTEREST_CATALOG;
   draftBio = '';
   draftInterests: string[] = [];
+  private birthDate = '';
   readonly goals = [
     'Una relación seria y estable', 'Algo casual', 'Amistad primero y ver qué pasa',
   ];
@@ -45,6 +46,7 @@ export class ProfilePage implements OnInit {
       next: (res) => {
         if (res?.data) {
           const d = res.data;
+          this.birthDate = d.birth_date;
           this.user.profile.first_name = d.first_name || this.user.profile.first_name;
           this.user.profile.city = d.city || this.user.profile.city;
           this.user.profile.bio = d.bio || this.user.profile.bio;
@@ -89,17 +91,19 @@ export class ProfilePage implements OnInit {
   }
 
   save() {
+    if (!this.birthDate) {
+      this.showToast('No se pudo recuperar tu perfil. Intenta nuevamente.');
+      return;
+    }
     this.p.bio = this.draftBio.trim();
     this.p.interests = this.draftInterests;
     this.user.save();
     this.editing = false;
 
     if (this.auth.isAuthenticated()) {
-      const currentYear = new Date().getFullYear();
-      const birthYear = currentYear - (this.p.age || 22);
       const payload = {
         first_name: this.p.first_name,
-        birth_date: `${birthYear}-06-15`,
+        birth_date: this.birthDate,
         gender: this.p.gender.toLowerCase() || 'otro',
         city: this.p.city || 'Villavicencio',
         bio: this.p.bio,

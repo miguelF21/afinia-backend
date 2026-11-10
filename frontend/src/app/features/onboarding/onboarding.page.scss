@@ -38,8 +38,11 @@ ion-content { --background: #fff; }
   button { height: 44px; border: 0; border-radius: 14px; background: transparent; font-weight: 700; font-size: 14.5px; color: var(--af-ink-2); transition: all .25s var(--af-ease); &.on { background: #fff; color: var(--af-raspberry); box-shadow: var(--af-shadow-sm); } } }
 .chips { display: flex; flex-wrap: wrap; gap: 10px; .big { padding: 11px 18px; font-size: 14.5px; } }
 .count { margin: 18px 0 0; font-weight: 700; color: var(--af-muted); font-size: 14px; &.ok { color: #178a4c; } }
-.q { padding: 18px; margin-bottom: 14px; border-radius: var(--af-r-md); background: var(--af-lilac-wash); display: grid; gap: 12px; b { font-size: 15.5px; } }
-.rate { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; button { height: 48px; border: 2px solid transparent; border-radius: 14px; background: #fff; font-weight: 800; font-size: 16px; color: var(--af-ink-2); transition: all .22s var(--af-ease); &:hover { border-color: var(--af-pink); } &.on { background: var(--af-grad-brand); color: #fff; transform: translateY(-2px); box-shadow: var(--af-shadow-brand); } } }
+.question-heading { margin: 0 0 6px; font-size: 15px; font-weight: 700; line-height: 1.4; }
+.scale-note { margin: 0 0 14px; color: var(--af-muted); font-size: 13px; }
+.question-number { color: var(--af-muted); font-size: 12px; font-weight: 700; }
+.q { padding: 12px 14px; margin-bottom: 8px; border-radius: var(--af-r-md); background: var(--af-lilac-wash); display: grid; gap: 7px; b { font-size: 15px; } }
+.rate { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; button { height: 42px; border: 2px solid transparent; border-radius: 14px; background: #fff; font-weight: 800; font-size: 16px; color: var(--af-ink-2); transition: all .22s var(--af-ease); &:hover { border-color: var(--af-pink); } &.on { background: var(--af-grad-brand); color: #fff; transform: translateY(-2px); box-shadow: var(--af-shadow-brand); } } }
 .ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--af-muted); font-weight: 600; margin-top: -4px; }
 .goals { display: grid; gap: 8px; button { display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 16px; border: 2px solid transparent; border-radius: 14px; background: #fff; font-weight: 700; font-size: 14.5px; color: var(--af-ink-2); text-align: left; transition: all .22s var(--af-ease); ion-icon { font-size: 20px; color: var(--af-raspberry); } &:hover { border-color: var(--af-pink); } &.on { border-color: var(--af-raspberry); background: var(--af-pink-wash); color: var(--af-raspberry-dark); } } }
 .nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 28px; .btn-primary { min-width: 160px; } }

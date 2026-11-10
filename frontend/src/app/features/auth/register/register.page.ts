@@ -126,7 +126,10 @@ export class RegisterPage {
       },
       error: async (err) => {
         this.loading = false;
-        const msg = err.error?.error?.message || 'Error al registrar la cuenta. Intenta nuevamente.';
+        const serverMessage = err.error?.error?.message;
+        const msg = err.status === 409 && serverMessage === 'El correo electrónico ya se encuentra registrado.'
+          ? 'Este correo ya tiene una cuenta. Inicia sesión para continuar.'
+          : serverMessage || 'Error al registrar la cuenta. Intenta nuevamente.';
         await this.showError(msg);
       },
     });

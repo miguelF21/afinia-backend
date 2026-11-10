@@ -36,7 +36,7 @@
         </div>
 
         <div class="field"><span class="field-label">Tu género</span>
-          <div class="seg"><button type="button" *ngFor="let g of genders" [class.on]="profile.gender === g" (click)="profile.gender = g">{{ g }}</button></div></div>
+          <div class="seg"><button type="button" *ngFor="let g of genders" [class.on]="profile.gender.toLowerCase() === g.toLowerCase()" (click)="profile.gender = g">{{ g }}</button></div></div>
 
         <div class="field"><span class="field-label">¿A quién te interesa conocer?</span>
           <div class="seg">
@@ -45,8 +45,8 @@
         </div>
 
         <div class="two">
-          <div class="field"><label for="a">Edad</label>
-            <div class="field-box"><ion-icon name="calendar-outline"></ion-icon><input id="a" type="number" min="18" max="99" placeholder="Ej. 25" [(ngModel)]="profile.age" name="age" /></div></div>
+          <div class="field"><label for="a">Fecha de nacimiento</label>
+            <div class="field-box"><ion-icon name="calendar-outline"></ion-icon><input id="a" type="date" [(ngModel)]="profile.birth_date" (ngModelChange)="updateAge()" name="birth_date" /></div></div>
           <div class="field"><label for="c">Ciudad</label>
             <div class="field-box"><ion-icon name="location-outline"></ion-icon><input id="c" type="text" placeholder="Ej. Villavicencio" [(ngModel)]="profile.city" name="city" /></div></div>
         </div>
@@ -64,18 +64,20 @@
 
       <!-- Paso 3: Personalidad -->
       <div *ngSwitchCase="3" class="step">
-        <h1>Test de personalidad</h1>
-        <p class="lead">Califica del 1 al 5 qué tan de acuerdo estás.</p>
-
-        <div class="q">
-          <b>Soy una persona extrovertida</b>
-          <div class="rate"><button type="button" *ngFor="let n of scale" [class.on]="analytics.intro_extro === n" (click)="analytics.intro_extro = n">{{ n }}</button></div>
-          <div class="ends"><span>Nada de acuerdo</span><span>Totalmente</span></div>
+        <h1>Cuestionario de afinidad</h1>
+        <p class="lead">Responde del 1 al 5. {{ answeredCount }} de {{ questions.length }} respuestas completadas.</p>
+        <p *ngIf="questionnaireLoading" role="status">Cargando cuestionario...</p>
+        <div *ngIf="questionnaireError" role="alert">
+          <p class="field-error">{{ questionnaireError }}</p>
+          <button type="button" class="btn btn-soft" (click)="loadQuestionnaire()">Reintentar</button>
         </div>
-        <div class="q">
-          <b>Importancia de compartir hobbies</b>
-          <div class="rate"><button type="button" *ngFor="let n of scale" [class.on]="analytics.hobbies === n" (click)="analytics.hobbies = n">{{ n }}</button></div>
-          <div class="ends"><span>Poco importante</span><span>Muy importante</span></div>
+        <p class="question-heading" *ngIf="characteristicHeading">{{ characteristicHeading }}</p>
+        <p class="scale-note" *ngIf="characteristicHeading">1 = nada importante · 5 = muy importante</p>
+        <div class="q" *ngFor="let question of questions; let i = index" role="group" [attr.aria-label]="question.label">
+          <span class="question-number">{{ i + 1 }} de {{ questions.length }}</span>
+          <b>{{ questionLabel(question.label) }}</b>
+          <div class="rate"><button type="button" *ngFor="let n of scale" [class.on]="answers[question.id] === n" [attr.aria-pressed]="answers[question.id] === n" [disabled]="loading" (click)="answers[question.id] = n">{{ n }}</button></div>
+          <div class="ends" *ngIf="!isCharacteristic(question.label)"><span>1</span><span>5</span></div>
         </div>
         <div class="q">
           <b>¿Qué tipo de relación buscas?</b>
@@ -87,7 +89,7 @@
 
     <!-- Navegación -->
     <div class="nav">
-      <button class="btn btn-ghost" type="button" (click)="prevStep()" [style.visibility]="currentStep === 1 ? 'hidden' : 'visible'"><ion-icon name="arrow-back"></ion-icon>Atrás</button>
+      <button class="btn btn-ghost" type="button" (click)="prevStep()" [disabled]="loading" [style.visibility]="currentStep === 1 ? 'hidden' : 'visible'"><ion-icon name="arrow-back"></ion-icon>Atrás</button>
       <button class="btn btn-primary" type="button" (click)="nextStep()" *ngIf="currentStep < totalSteps" [disabled]="!canContinue">Siguiente <ion-icon name="arrow-forward"></ion-icon></button>
       <button class="btn btn-primary" type="button" (click)="finishOnboarding()" *ngIf="currentStep === totalSteps" [disabled]="!canContinue">Finalizar <ion-icon name="heart"></ion-icon></button>
     </div>

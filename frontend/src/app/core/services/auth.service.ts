@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { Observable, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export interface AuthUser {
@@ -97,6 +97,40 @@ export class AuthService {
 
   getToken(): string | null {
     return localStorage.getItem(this.TOKEN_KEY);
+  }
+
+  getRefreshToken(): string | null {
+    return localStorage.getItem(this.REFRESH_KEY);
+  }
+
+  refreshToken(): Observable<LoginResponse> {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      return throwError(() => new Error('No hay refresh token disponible.'));
+    }
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/json',
+      'X-Client-Platform': 'mobile',
+    });
+    return this.http.post<LoginResponse>(
+      `${environment.apiUrl}/auth/refresh`,
+      { refresh_token: refreshToken },
+      { headers }
+    ).pipe(
+      tap((res) => {
+        if (res && res.data) {
+          if (res.data.access_token) {
+            localStorage.setItem(this.TOKEN_KEY, res.data.access_token);
+          }
+          if (res.data.refresh_token) {
+            localStorage.setItem(this.REFRESH_KEY, res.data.refresh_token);
+          }
+          if (res.data.user) {
+            localStorage.setItem(this.USER_KEY, JSON.stringify(res.data.user));
+          }
+        }
+      })
+    );
   }
 
   getUser(): AuthUser | null {

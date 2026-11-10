@@ -5,11 +5,11 @@
       <p class="page-sub">Encuentra a alguien especial según tus afinidades</p>
     </div>
     <div class="filter">
-      <button class="filter-btn" [class.on]="filtersActive" (click)="filtersOpen = !filtersOpen" [attr.aria-expanded]="filtersOpen">
+      <button class="filter-btn" type="button" [class.on]="filtersActive" (click)="filtersOpen = !filtersOpen" [attr.aria-expanded]="filtersOpen" aria-controls="discovery-filters">
         <ion-icon name="funnel-outline"></ion-icon> Filtros
         <ion-icon name="chevron-down" class="chev" [class.up]="filtersOpen"></ion-icon>
       </button>
-      <div class="filter-pop" *ngIf="filtersOpen">
+      <div id="discovery-filters" class="filter-pop" *ngIf="filtersOpen">
         <span class="field-label">Afinidad mínima</span>
         <div class="chips">
           <button *ngFor="let t of thresholds" class="chip" [class.is-on]="data.minAffinity === t" (click)="setMin(t)">{{ t ? t + '%+' : 'Todas' }}</button>
@@ -63,9 +63,9 @@
   <ng-template #empty>
     <div class="empty card rise-2" *ngIf="data.discoveryError; else standardEmpty">
       <span class="emp-ico"><ion-icon name="alert-circle-outline"></ion-icon></span>
-      <h2>Completa tu perfil</h2>
-      <p>{{ data.discoveryError }}</p>
-      <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px;">
+      <h2>No puedes descubrir personas todavía</h2>
+      <p>Verifica tu correo y completa tu perfil y tu foto. Si ya cumples estos requisitos, inténtalo más tarde.</p>
+      <div class="empty-actions">
         <a class="btn btn-primary" routerLink="/onboarding"><ion-icon name="create-outline"></ion-icon>Completar perfil</a>
         <a class="btn btn-soft" routerLink="/profile"><ion-icon name="person-outline"></ion-icon>Ver mi perfil</a>
       </div>

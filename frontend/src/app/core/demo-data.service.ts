@@ -72,7 +72,8 @@ export class DemoDataService {
       error: (err) => {
         this.loadingQueue = false;
         if (err?.status === 403) {
-          this.discoveryError = err.error?.error?.message || 'Tu perfil requiere completar información para acceder a descubrimiento.';
+          this.queue = [];
+          this.discoveryError = 'FORBIDDEN';
         } else {
           this.discoveryError = null;
         }

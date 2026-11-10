@@ -41,64 +41,17 @@ class EmailService:
                 return msg.get('token')
         return None
 
-    def send_verification_email(self, to_email: str, raw_token: str) -> None:
-        """
-        Envía un correo de verificación transaccional.
-        NOTA DE SEGURIDAD: Nunca registra el raw_token en los logs del servidor.
-        """
-        if self._simulate_failure:
-            raise EmailDeliveryError("Fallo simulado en el transporte de correo transaccional.")
-
-        normalized_email = to_email.strip().lower()
-
-        # Determinar URL del frontend configurada por entorno
-        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:8100').rstrip('/')
-        # Uso del fragmento URL (#token=) para evitar que el token viaje en logs HTTP de servidores web intermedios
-        verification_url = f"{frontend_url}/verify-email#token={raw_token}"
-
-        subject = "Verifica tu correo electrónico en Afinia"
-        
-        text_body = (
-            f"Hola,\n\n"
-            f"Gracias por registrarte en Afinia. Para confirmar tu cuenta y continuar con tu perfil, "
-            f"por favor ingresa al siguiente enlace de verificación:\n\n"
-            f"{verification_url}\n\n"
-            f"Este enlace tiene una vigencia temporal de 24 horas y solo puede utilizarse una vez.\n\n"
-            f"Si no creaste una cuenta en Afinia, puedes ignorar este mensaje de forma segura.\n\n"
-            f"— El equipo de Afinia"
-        )
-
-        html_body = (
-            f"<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;'>"
-            f"<h2 style='color: #4A90E2;'>Bienvenido a Afinia</h2>"
-            f"<p>Para verificar tu dirección de correo electrónico y continuar configurando tu cuenta, "
-            f"haz clic en el siguiente botón:</p>"
-            f"<p style='text-align: center; margin: 30px 0;'>"
-            f"<a href='{verification_url}' style='background-color: #4A90E2; color: #fff; padding: 12px 24px; "
-            f"text-decoration: none; border-radius: 6px; font-weight: bold;'>Verificar mi correo</a>"
-            f"</p>"
-            f"<p style='font-size: 13px; color: #777;'>O copia y pega el siguiente enlace en tu navegador:<br>"
-            f"<a href='{verification_url}' style='color: #4A90E2; word-break: break-all;'>{verification_url}</a></p>"
-            f"<p style='font-size: 12px; color: #999; margin-top: 30px;'>"
-            f"Este enlace expira en 24 horas y es de uso único.<br>"
-            f"Si tú no creaste esta cuenta, puedes desestimar este mensaje con total seguridad."
-            f"</p>"
-            f"</div>"
-        )
-
-        backend = current_app.config.get('MAIL_BACKEND', 'in_memory').lower()
+    def _send_transport(self, normalized_email: str, subject: str, text_body: str, html_body: str, memory_dict: Dict[str, Any]) -> None:
+        """Entrega el mensaje a través del backend configurado ('in_memory' o 'smtp')."""
+        # Si la app está en modo de pruebas (TESTING=True), forzar in_memory para aislamiento de tests
+        if current_app.config.get('TESTING'):
+            backend = 'in_memory'
+        else:
+            backend = current_app.config.get('MAIL_BACKEND', 'in_memory').lower()
 
         if backend == 'in_memory':
-            # Registro en memoria seguro para QA / automatización de pruebas
-            self._sent_messages.append({
-                'to': normalized_email,
-                'subject': subject,
-                'verification_url': verification_url,
-                'token': raw_token,
-                'text_body': text_body,
-                'html_body': html_body
-            })
-            current_app.logger.info(f"Correo de verificación encolado en memoria para {normalized_email}")
+            self._sent_messages.append(memory_dict)
+            current_app.logger.info(f"Correo encolado en memoria para {normalized_email} (subject='{subject}')")
             return
 
         elif backend == 'smtp':
@@ -120,18 +73,224 @@ class EmailService:
             msg.add_alternative(html_body, subtype='html')
 
             try:
-                with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+                with smtplib.SMTP(smtp_host, smtp_port, timeout=12) as server:
                     if use_tls:
                         server.starttls()
                     if smtp_user and smtp_pass:
                         server.login(smtp_user, smtp_pass)
                     server.send_message(msg)
-                current_app.logger.info(f"Correo de verificación enviado vía SMTP a {normalized_email}")
+                current_app.logger.info(f"Correo enviado exitosamente vía SMTP a {normalized_email}")
             except Exception as e:
                 current_app.logger.error(f"Error al enviar correo SMTP a {normalized_email}: {str(e)}")
                 raise EmailDeliveryError(f"Error de transporte SMTP: {str(e)}")
         else:
             raise EmailDeliveryError(f"Backend de correo '{backend}' no reconocido.")
+
+    def send_auth_code_email(self, to_email: str, code: str, user_name: Optional[str] = None) -> None:
+        """
+        Envía un correo con el código OTP de autenticación / verificación.
+        Plantilla estilizada con identidad Afinia (corazones, gradientes y diseño responsivo).
+        """
+        if self._simulate_failure:
+            raise EmailDeliveryError("Fallo simulado en el transporte de correo transaccional.")
+
+        normalized_email = to_email.strip().lower()
+        greeting = f"Hola {user_name}," if user_name else "¡Hola!"
+
+        subject = f"💖 Tu código de acceso a Afinia: {code}"
+
+        text_body = (
+            f"{greeting}\n\n"
+            f"Tu código de verificación para Afinia es:\n\n"
+            f"    {code}\n\n"
+            f"Este código es válido por 10 minutos y es de uso único.\n\n"
+            f"Si tú no solicitaste este código, puedes ignorar este mensaje de forma segura.\n"
+            f"Nunca compartas este código con nadie.\n\n"
+            f"— El equipo de Afinia 💕"
+        )
+
+        html_body = f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{subject}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #FFF1F4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFF1F4; padding: 40px 10px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 540px; background-color: #FFFFFF; border-radius: 24px; overflow: hidden; box-shadow: 0 12px 36px rgba(230, 46, 92, 0.12); border: 1px solid #FFE4E9;">
+          <tr>
+            <td align="center" style="background: linear-gradient(135deg, #FF3366 0%, #FF6584 50%, #8A2387 100%); padding: 42px 20px 32px 20px; text-align: center;">
+              <div style="font-size: 38px; line-height: 38px; margin-bottom: 12px;">💖 ✨ 💕</div>
+              <h1 style="color: #FFFFFF; font-size: 30px; font-weight: 800; margin: 0; letter-spacing: -0.5px;">Afinia</h1>
+              <p style="color: #FFE4EC; font-size: 13px; margin: 6px 0 0 0; font-weight: 500; letter-spacing: 0.5px;">CONECTA CON QUIEN COMPARTE TU ENERGÍA</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 32px 28px 32px; text-align: center;">
+              <h2 style="color: #1F2937; font-size: 20px; font-weight: 700; margin: 0 0 12px 0;">{greeting}</h2>
+              <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 28px 0;">
+                Usa el siguiente código de seguridad para verificar tu cuenta e ingresar a <strong>Afinia</strong>:
+              </p>
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="center" style="margin: 0 auto 28px auto;">
+                <tr>
+                  <td align="center" style="background: #FFF5F7; border: 2px dashed #FF4D79; border-radius: 18px; padding: 18px 36px;">
+                    <span style="font-family: 'Courier New', Courier, monospace, sans-serif; font-size: 34px; font-weight: 800; color: #E11D48; letter-spacing: 8px; display: inline-block; padding-left: 8px;">
+                      {code}
+                    </span>
+                  </td>
+                </tr>
+              </table>
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="center" style="margin: 0 auto 24px auto;">
+                <tr>
+                  <td style="background-color: #FFF0F3; border-radius: 30px; padding: 6px 16px;">
+                    <p style="color: #BE123C; font-size: 13px; font-weight: 600; margin: 0;">⏰ Este código expira en <strong>10 minutos</strong></p>
+                  </td>
+                </tr>
+              </table>
+              <p style="color: #9CA3AF; font-size: 13px; line-height: 20px; margin: 0 0 8px 0;">
+                🔒 Si tú no solicitaste este código, puedes ignorar este correo; tu cuenta permanecerá totalmente protegida.
+              </p>
+              <p style="color: #9CA3AF; font-size: 12px; margin: 0;">
+                <em>Nunca compartas este código con nadie. El equipo de Afinia jamás te lo solicitará.</em>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 32px;"><hr style="border: 0; height: 1px; background-color: #FEE2E2; margin: 0;"></td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 32px 32px 32px; text-align: center; background-color: #FAFAFA;">
+              <p style="color: #6B7280; font-size: 13px; margin: 0 0 6px 0; font-weight: 500;">
+                Hecho con <span style="color: #FF3366;">❤️</span> para que encuentres tu match ideal
+              </p>
+              <p style="color: #9CA3AF; font-size: 12px; margin: 0;">© 2026 Afinia • Todos los derechos reservados.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+        memory_dict = {
+            'type': 'auth_code',
+            'to': normalized_email,
+            'subject': subject,
+            'code': code,
+            'text_body': text_body,
+            'html_body': html_body
+        }
+
+        self._send_transport(normalized_email, subject, text_body, html_body, memory_dict)
+
+    def send_verification_email(self, to_email: str, raw_token: str) -> None:
+        """
+        Envía un correo de verificación transaccional.
+        NOTA DE SEGURIDAD: Nunca registra el raw_token en los logs del servidor.
+        """
+        if self._simulate_failure:
+            raise EmailDeliveryError("Fallo simulado en el transporte de correo transaccional.")
+
+        normalized_email = to_email.strip().lower()
+
+        # Determinar URL del frontend configurada por entorno con validación de orígenes
+        configured_frontend = current_app.config.get('FRONTEND_URL', 'http://localhost:8100').rstrip('/')
+        allowed_origins = current_app.config.get('CORS_ORIGINS', [])
+        if allowed_origins and '*' not in allowed_origins and not any(configured_frontend == o.rstrip('/') or configured_frontend.startswith(o.rstrip('/')) for o in allowed_origins):
+            frontend_url = 'http://localhost:8100'
+        else:
+            frontend_url = configured_frontend
+
+        # Uso del fragmento URL (#token=) para evitar que el token viaje en logs HTTP de servidores web intermedios
+        verification_url = f"{frontend_url}/verify-email#token={raw_token}"
+
+        subject = "Verifica tu correo electrónico en Afinia"
+        
+        text_body = (
+            f"¡Hola!\n\n"
+            f"Gracias por registrarte en Afinia. Para confirmar tu cuenta y continuar con tu perfil, "
+            f"por favor ingresa al siguiente enlace de verificación:\n\n"
+            f"{verification_url}\n\n"
+            f"Este enlace tiene una vigencia temporal de 24 horas y solo puede utilizarse una vez.\n\n"
+            f"Si no creaste una cuenta en Afinia, puedes ignorar este mensaje de forma segura.\n\n"
+            f"— El equipo de Afinia 💕"
+        )
+
+        html_body = f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{subject}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #FFF1F4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFF1F4; padding: 40px 10px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 540px; background-color: #FFFFFF; border-radius: 24px; overflow: hidden; box-shadow: 0 12px 36px rgba(230, 46, 92, 0.12); border: 1px solid #FFE4E9;">
+          <tr>
+            <td align="center" style="background: linear-gradient(135deg, #FF3366 0%, #FF6584 50%, #8A2387 100%); padding: 42px 20px 32px 20px; text-align: center;">
+              <div style="font-size: 38px; line-height: 38px; margin-bottom: 12px;">💖 ✨ 💕</div>
+              <h1 style="color: #FFFFFF; font-size: 30px; font-weight: 800; margin: 0; letter-spacing: -0.5px;">Afinia</h1>
+              <p style="color: #FFE4EC; font-size: 13px; margin: 6px 0 0 0; font-weight: 500; letter-spacing: 0.5px;">CONECTA CON QUIEN COMPARTE TU ENERGÍA</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 32px 28px 32px; text-align: center;">
+              <h2 style="color: #1F2937; font-size: 20px; font-weight: 700; margin: 0 0 12px 0;">¡Te damos la bienvenida!</h2>
+              <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 28px 0;">
+                Para verificar tu dirección de correo electrónico y continuar configurando tu perfil, haz clic en el siguiente botón:
+              </p>
+              <p style="text-align: center; margin: 30px 0;">
+                <a href="{verification_url}" style="background: linear-gradient(135deg, #FF3366 0%, #E11D48 100%); color: #FFFFFF; padding: 14px 32px; text-decoration: none; border-radius: 30px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 6px 18px rgba(225, 29, 72, 0.35);">
+                  ✨ Verificar mi correo
+                </a>
+              </p>
+              <p style="font-size: 13px; color: #777; margin: 24px 0 16px 0;">O copia y pega el siguiente enlace en tu navegador:<br>
+                <a href="{verification_url}" style="color: #E11D48; word-break: break-all;">{verification_url}</a>
+              </p>
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="center" style="margin: 0 auto 24px auto;">
+                <tr>
+                  <td style="background-color: #FFF0F3; border-radius: 30px; padding: 6px 16px;">
+                    <p style="color: #BE123C; font-size: 13px; font-weight: 600; margin: 0;">⏰ Enlace válido por <strong>24 horas</strong> (de uso único)</p>
+                  </td>
+                </tr>
+              </table>
+              <p style="color: #9CA3AF; font-size: 12px; margin: 0;">Si no creaste esta cuenta, puedes desestimar este mensaje con total seguridad.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 32px;"><hr style="border: 0; height: 1px; background-color: #FEE2E2; margin: 0;"></td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 32px 32px 32px; text-align: center; background-color: #FAFAFA;">
+              <p style="color: #6B7280; font-size: 13px; margin: 0 0 6px 0; font-weight: 500;">
+                Hecho con <span style="color: #FF3366;">❤️</span> para que encuentres tu match ideal
+              </p>
+              <p style="color: #9CA3AF; font-size: 12px; margin: 0;">© 2026 Afinia • Todos los derechos reservados.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+        memory_dict = {
+            'to': normalized_email,
+            'subject': subject,
+            'verification_url': verification_url,
+            'token': raw_token,
+            'text_body': text_body,
+            'html_body': html_body
+        }
+
+        self._send_transport(normalized_email, subject, text_body, html_body, memory_dict)
 
     def get_last_password_reset_token_for(self, email: str) -> Optional[str]:
         """Obtiene el último token de restablecimiento de contraseña generado para un correo (solo pruebas)."""
@@ -159,7 +318,7 @@ class EmailService:
         allowed_origins = current_app.config.get('CORS_ORIGINS', [])
         
         # Validar que frontend_url esté dentro de los orígenes autorizados o usar default seguro
-        if allowed_origins and not any(configured_frontend == o.rstrip('/') or configured_frontend.startswith(o.rstrip('/')) for o in allowed_origins):
+        if allowed_origins and '*' not in allowed_origins and not any(configured_frontend == o.rstrip('/') or configured_frontend.startswith(o.rstrip('/')) for o in allowed_origins):
             frontend_url = 'http://localhost:8100'
         else:
             frontend_url = configured_frontend
@@ -170,80 +329,87 @@ class EmailService:
         subject = "Restablece tu contraseña en Afinia"
 
         text_body = (
-            f"Hola,\n\n"
+            f"¡Hola!\n\n"
             f"Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en Afinia.\n"
             f"Para ingresar una nueva contraseña, por favor ingresa al siguiente enlace:\n\n"
             f"{reset_url}\n\n"
             f"Este enlace tiene una vigencia temporal de {minutes} minutos y solo puede utilizarse una vez.\n\n"
             f"Si tú no solicitaste este cambio, puedes ignorar este mensaje de forma segura: "
             f"tu contraseña actual permanecerá sin modificaciones y tu cuenta seguirá protegida.\n\n"
-            f"— El equipo de Afinia"
+            f"— El equipo de Afinia 💕"
         )
 
-        html_body = (
-            f"<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;'>"
-            f"<h2 style='color: #4A90E2;'>Restablecimiento de contraseña</h2>"
-            f"<p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en Afinia.</p>"
-            f"<p>Para crear una nueva contraseña y recuperar tu acceso, haz clic en el siguiente botón:</p>"
-            f"<p style='text-align: center; margin: 30px 0;'>"
-            f"<a href='{reset_url}' style='background-color: #4A90E2; color: #fff; padding: 12px 24px; "
-            f"text-decoration: none; border-radius: 6px; font-weight: bold;'>Restablecer mi contraseña</a>"
-            f"</p>"
-            f"<p style='font-size: 13px; color: #777;'>O copia y pega el siguiente enlace en tu navegador:<br>"
-            f"<a href='{reset_url}' style='color: #4A90E2; word-break: break-all;'>{reset_url}</a></p>"
-            f"<p style='font-size: 12px; color: #999; margin-top: 30px;'>"
-            f"Este enlace expira en {minutes} minutos y es de un solo uso.<br>"
-            f"Si tú no solicitaste restablecer tu contraseña, desestima este mensaje. Tu cuenta sigue segura."
-            f"</p>"
-            f"</div>"
-        )
+        html_body = f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{subject}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #FFF1F4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFF1F4; padding: 40px 10px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 540px; background-color: #FFFFFF; border-radius: 24px; overflow: hidden; box-shadow: 0 12px 36px rgba(230, 46, 92, 0.12); border: 1px solid #FFE4E9;">
+          <tr>
+            <td align="center" style="background: linear-gradient(135deg, #FF3366 0%, #FF6584 50%, #8A2387 100%); padding: 42px 20px 32px 20px; text-align: center;">
+              <div style="font-size: 38px; line-height: 38px; margin-bottom: 12px;">💖 ✨ 💕</div>
+              <h1 style="color: #FFFFFF; font-size: 30px; font-weight: 800; margin: 0; letter-spacing: -0.5px;">Afinia</h1>
+              <p style="color: #FFE4EC; font-size: 13px; margin: 6px 0 0 0; font-weight: 500; letter-spacing: 0.5px;">RECUPERACIÓN DE ACCESO SEGURO</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 36px 32px 28px 32px; text-align: center;">
+              <h2 style="color: #1F2937; font-size: 20px; font-weight: 700; margin: 0 0 12px 0;">Restablece tu contraseña</h2>
+              <p style="color: #4B5563; font-size: 15px; line-height: 24px; margin: 0 0 28px 0;">
+                Hemos recibido una solicitud para cambiar la contraseña de tu cuenta. Haz clic en el botón de abajo para elegir una nueva:
+              </p>
+              <p style="text-align: center; margin: 30px 0;">
+                <a href="{reset_url}" style="background: linear-gradient(135deg, #FF3366 0%, #E11D48 100%); color: #FFFFFF; padding: 14px 32px; text-decoration: none; border-radius: 30px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 6px 18px rgba(225, 29, 72, 0.35);">
+                  🔒 Restablecer mi contraseña
+                </a>
+              </p>
+              <p style="font-size: 13px; color: #777; margin: 24px 0 16px 0;">O copia y pega el siguiente enlace en tu navegador:<br>
+                <a href="{reset_url}" style="color: #E11D48; word-break: break-all;">{reset_url}</a>
+              </p>
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="center" style="margin: 0 auto 24px auto;">
+                <tr>
+                  <td style="background-color: #FFF0F3; border-radius: 30px; padding: 6px 16px;">
+                    <p style="color: #BE123C; font-size: 13px; font-weight: 600; margin: 0;">⏰ Enlace válido por <strong>{minutes} minutos</strong> (de uso único)</p>
+                  </td>
+                </tr>
+              </table>
+              <p style="color: #9CA3AF; font-size: 12px; margin: 0;">Si no solicitaste este cambio, no te preocupes: tu contraseña actual sigue segura.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 32px;"><hr style="border: 0; height: 1px; background-color: #FEE2E2; margin: 0;"></td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 32px 32px 32px; text-align: center; background-color: #FAFAFA;">
+              <p style="color: #6B7280; font-size: 13px; margin: 0 0 6px 0; font-weight: 500;">
+                Hecho con <span style="color: #FF3366;">❤️</span> para que encuentres tu match ideal
+              </p>
+              <p style="color: #9CA3AF; font-size: 12px; margin: 0;">© 2026 Afinia • Todos los derechos reservados.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
 
-        backend = current_app.config.get('MAIL_BACKEND', 'in_memory').lower()
+        memory_dict = {
+            'type': 'password_reset',
+            'to': normalized_email,
+            'subject': subject,
+            'reset_url': reset_url,
+            'token': raw_token,
+            'text_body': text_body,
+            'html_body': html_body
+        }
 
-        if backend == 'in_memory':
-            # Registro en memoria seguro para QA / pruebas automatizadas
-            self._sent_messages.append({
-                'type': 'password_reset',
-                'to': normalized_email,
-                'subject': subject,
-                'reset_url': reset_url,
-                'token': raw_token,
-                'text_body': text_body,
-                'html_body': html_body
-            })
-            current_app.logger.info(f"Correo de restablecimiento encolado en memoria para {normalized_email}")
-            return
-
-        elif backend == 'smtp':
-            smtp_host = current_app.config.get('SMTP_HOST')
-            smtp_port = current_app.config.get('SMTP_PORT', 587)
-            smtp_user = current_app.config.get('SMTP_USER')
-            smtp_pass = current_app.config.get('SMTP_PASSWORD')
-            smtp_from = current_app.config.get('SMTP_FROM', 'Afinia <no-reply@afinia.app>')
-            use_tls = current_app.config.get('SMTP_USE_TLS', True)
-
-            if not smtp_host:
-                raise EmailDeliveryError("Configuración SMTP_HOST ausente para el backend 'smtp'.")
-
-            msg = EmailMessage()
-            msg['Subject'] = subject
-            msg['From'] = smtp_from
-            msg['To'] = normalized_email
-            msg.set_content(text_body)
-            msg.add_alternative(html_body, subtype='html')
-
-            try:
-                with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
-                    if use_tls:
-                        server.starttls()
-                    if smtp_user and smtp_pass:
-                        server.login(smtp_user, smtp_pass)
-                    server.send_message(msg)
-                current_app.logger.info(f"Correo de restablecimiento enviado vía SMTP a {normalized_email}")
-            except Exception as e:
-                current_app.logger.error(f"Error al enviar correo SMTP a {normalized_email}: {str(e)}")
-                raise EmailDeliveryError(f"Error de transporte SMTP: {str(e)}")
-        else:
-            raise EmailDeliveryError(f"Backend de correo '{backend}' no reconocido.")
+        self._send_transport(normalized_email, subject, text_body, html_body, memory_dict)
 
 email_service = EmailService()

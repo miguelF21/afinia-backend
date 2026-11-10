@@ -24,7 +24,7 @@ export class VerifyEmailPage implements OnDestroy {
     private auth: AuthService,
     private toastController: ToastController
   ) {
-    this.token = route.snapshot.queryParamMap.get('token') ?? '';
+    this.token = new URLSearchParams(route.snapshot.fragment ?? '').get('token') ?? route.snapshot.queryParamMap.get('token') ?? '';
     if (this.token) {
       this.onVerify();
     }
