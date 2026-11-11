@@ -3,6 +3,7 @@
 
 .head { position: relative; z-index: 2; min-width: 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 22px; }
 .filter { position: relative; flex: none; }
+.swipe-error { color: var(--af-raspberry-dark); text-align: center; margin: 0 0 14px; }
 .filter-btn {
   display: inline-flex; align-items: center; gap: 9px; height: 46px; padding: 0 18px; border-radius: var(--af-r-pill); border: 2px solid var(--af-line); background: #fff;
   font-weight: 700; font-size: 15px; color: var(--af-ink); transition: all .2s;

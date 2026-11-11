@@ -99,11 +99,25 @@ export class OnboardingPage {
         this.profile.gender = data.gender;
         this.profile.birth_date = data.birth_date;
         this.profile.city = data.city || '';
+        if (!this.interests.length && typeof data.bio === 'string' && data.bio.startsWith('Intereses: ')) {
+          this.interests = data.bio.slice('Intereses: '.length).split(', ').filter((interest: string) => this.catalog.includes(interest));
+        }
         if (Array.isArray(data.photos) && data.photos.length > 0) {
           const primary = data.photos.find((p: any) => p.is_primary) || data.photos[0];
           if (primary?.url) this.photoPreview = primary.url;
         }
         this.updateAge();
+        this.api.get<{ data: { interested_in_genders: string[]; target_relationship_type: string | null } }>('/profile/discovery-preferences').subscribe({
+          next: ({ data: preferences }) => {
+            if (preferences.interested_in_genders?.length === 1 && ['masculino', 'femenino'].includes(preferences.interested_in_genders[0])) {
+              this.interestedIn = preferences.interested_in_genders[0];
+            }
+            if (preferences.target_relationship_type && this.goals.some(goal => goal.value === preferences.target_relationship_type)) {
+              this.analytics.target = preferences.target_relationship_type;
+            }
+          },
+          error: () => {}
+        });
       },
       error: () => {}
     });

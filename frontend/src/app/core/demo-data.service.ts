@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { ApiService } from './services/api.service';
 import { AuthService } from './services/auth.service';
 import { ChatMessage, Person } from './models';
+import { map, tap } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class DemoDataService {
@@ -90,7 +91,7 @@ export class DemoDataService {
         if (res?.data) {
           const items = Array.isArray(res.data) ? res.data : (res.data as any).items || [];
           this.matches = items.map((m: any, idx: number) => {
-            const partner = m.partner_profile || m.user || m;
+            const partner = m.other_user || m.partner_profile || m.user || m;
             const matchId = m.id || m.match_id || partner.id;
             if (m.last_message) {
               const myId = this.auth.getUser()?.id;
@@ -145,55 +146,27 @@ export class DemoDataService {
       (!q || [p.name, p.city, ...p.interests].some(t => t.toLowerCase().includes(q))));
   }
 
-  like(p: Person): Person | null {
-    this.removeFromQueue(p);
-    this.likesSent++;
-
-    let matchedPerson: Person | null = null;
-    this.api.post<{ data: { is_match: boolean; match_id?: string } }>('/match/swipe', {
+  like(p: Person) {
+    return this.api.post<{ data: { is_match: boolean; match_id?: string } }>('/match/swipe', {
       target_user_id: p.id,
       action: 'LIKE',
-    }).subscribe({
-      next: (res) => {
-        if (res?.data?.is_match) {
-          const matchId = res.data.match_id || ('m-' + p.id);
-          const m: Person = { ...p, id: matchId };
-          this.matches.unshift(m);
-          this.threads[matchId] = [{
-            id: 'n' + Date.now(),
-            fromMe: false,
-            text: '¡Es un match! 🎉 Ya pueden comenzar a conversar.',
-            at: new Date().toISOString(),
-          }];
-          this.unread[matchId] = 1;
-        }
-      },
-      error: () => {}
-    });
-
-    if (p.likesYou) {
-      const m: Person = { ...p, id: 'm-' + p.id };
-      this.matches.unshift(m);
-      this.threads[m.id] = [{
-        id: 'n' + Date.now(),
-        fromMe: false,
-        text: '¡Hola! 👋 ¿Cómo estás?',
-        at: new Date().toISOString(),
-      }];
-      this.unread[m.id] = 1;
-      return m;
-    }
-    return null;
+    }).pipe(map(res => {
+      if (!res?.data || (res.data.is_match && !res.data.match_id)) throw new Error('Respuesta de coincidencia incompleta');
+      const match = res.data.is_match ? { ...p, id: res.data.match_id! } : null;
+      this.removeFromQueue(p);
+      this.likesSent++;
+      if (match) {
+        this.matches = [match, ...this.matches.filter(item => item.id !== match.id)];
+      }
+      return match;
+    }));
   }
 
   pass(p: Person) {
-    this.removeFromQueue(p);
-    this.api.post('/match/swipe', {
+    return this.api.post('/match/swipe', {
       target_user_id: p.id,
       action: 'PASS',
-    }).subscribe({
-      error: () => {}
-    });
+    }).pipe(tap(() => this.removeFromQueue(p)));
   }
 
   toggleFavorite(p: Person) {

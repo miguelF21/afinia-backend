@@ -15,6 +15,7 @@ export class DashboardPage implements OnInit {
   expanded = false;
   filtersOpen = false;
   matched: Person | null = null;
+  swipeError = '';
   readonly thresholds = [0, 70, 80, 90];
 
   constructor(public data: DemoDataService, public user: UserStateService, private router: Router) {}
@@ -46,20 +47,25 @@ export class DashboardPage implements OnInit {
     if (!p || this.leaving) return;
     this.leaving = kind;
     this.expanded = false;
+    this.swipeError = '';
 
     setTimeout(() => {
       if (kind === 'like') {
-        const m = this.data.like(p);
-        this.matched = m ? p : null;
+        this.data.like(p).subscribe({
+          next: match => { this.matched = match; this.leaving = null; },
+          error: () => { this.swipeError = 'No se pudo guardar tu elección. Intenta nuevamente.'; this.leaving = null; }
+        });
       } else {
-        this.data.pass(p);
+        this.data.pass(p).subscribe({
+          next: () => { this.leaving = null; },
+          error: () => { this.swipeError = 'No se pudo guardar tu elección. Intenta nuevamente.'; this.leaving = null; }
+        });
       }
-      this.leaving = null;
     }, 380);
   }
 
   goChat() {
-    const id = this.matched ? 'm-' + this.matched.id : null;
+    const id = this.matched?.id;
     this.matched = null;
     if (id) this.router.navigate(['/messages', id]);
   }

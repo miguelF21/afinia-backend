@@ -6,6 +6,10 @@ Implementa las rutas públicas de usuarios bajo /api/v1/users conforme a OpenAPI
 
 from flask import Blueprint, request, current_app, Response, jsonify
 from app.auth.middleware import token_required, admin_required
+from app import db
+from app.models import ProfilePhoto
+from app.services.profile_service import sync_user_lifecycle_status
+from app.services.storage_service import storage_adapter
 from app.utils.errors import api_response, api_error
 from app.services.discovery_service import get_public_profile_by_user_id, DiscoveryError
 from app.services.block_service import (
@@ -23,6 +27,67 @@ from app.services.report_service import (
 
 bp = Blueprint('users', __name__)
 admin_bp = Blueprint('admin', __name__)
+
+
+@admin_bp.route('/photos/pending', methods=['GET'])
+@admin_required
+def list_pending_photos(current_user):
+    """Lista fotos pendientes para revisión manual por administradores."""
+    try:
+        offset = int(request.args.get('offset', '0'))
+        if offset < 0:
+            raise ValueError()
+    except ValueError:
+        return api_error('VALIDATION_ERROR', 'El desplazamiento debe ser un número entero no negativo.', 422)
+    photos = ProfilePhoto.query.filter(ProfilePhoto.status.in_(['pending', 'processing'])).order_by(
+        ProfilePhoto.created_at.asc(), ProfilePhoto.id.asc()
+    ).offset(offset).limit(101).all()
+    return api_response({'items': [{'id': str(photo.id), 'is_primary': bool(photo.is_primary)} for photo in photos[:100]],
+                         'next_offset': offset + 100 if len(photos) > 100 else None})
+
+
+@admin_bp.route('/photos/<photo_id>/media', methods=['GET'])
+@admin_required
+def review_photo_media(current_user, photo_id):
+    """Permite al administrador revisar el archivo antes de decidir."""
+    photo = db.session.get(ProfilePhoto, photo_id)
+    if not photo or photo.status not in ('pending', 'processing'):
+        return api_error('NOT_FOUND', 'Foto pendiente no encontrada.', 404)
+    path = storage_adapter.get_file_path(photo.storage_key)
+    if not path:
+        return api_error('NOT_FOUND', 'El archivo de la foto ya no está disponible.', 404)
+    with open(path, 'rb') as source:
+        response = Response(source.read(), mimetype=photo.content_type or 'image/jpeg')
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+@admin_bp.route('/photos/<photo_id>/review', methods=['POST'])
+@admin_required
+def review_photo(current_user, photo_id):
+    """Aprueba o rechaza una foto revisada y sincroniza la cuenta."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or set(data) != {'decision'} or data['decision'] not in ('approve', 'reject'):
+        return api_error('VALIDATION_ERROR', 'Indica una decisión válida.', 422)
+    try:
+        photo = ProfilePhoto.query.filter_by(id=photo_id).with_for_update().first()
+        if not photo:
+            return api_error('NOT_FOUND', 'Foto no encontrada.', 404)
+        if photo.status not in ('pending', 'processing'):
+            return api_error('CONFLICT', 'La foto ya fue revisada.', 409)
+        if data['decision'] == 'approve' and not storage_adapter.get_file_path(photo.storage_key):
+            return api_error('CONFLICT', 'El archivo de la foto ya no está disponible.', 409)
+        photo.status = 'ready' if data['decision'] == 'approve' else 'rejected'
+        db.session.flush()
+        sync_user_lifecycle_status(photo.profile.user)
+        db.session.commit()
+        current_app.logger.info('Revisión de foto completada por administrador: decisión=%s', data['decision'])
+        return api_response({'status': photo.status})
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception('No se pudo completar la revisión de foto')
+        return api_error('INTERNAL_ERROR', 'No se pudo completar la revisión de la foto.', 500)
 
 
 @bp.route('/me/blocks', methods=['GET'])

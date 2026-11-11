@@ -425,6 +425,8 @@ def save_discovery_preferences(user: User, data: dict) -> dict:
             pref.max_age = max_age
             pref.target_relationship_type = rel_type
 
+        db.session.flush()
+        db.session.expire(user, ['discovery_preference'])
         sync_user_lifecycle_status(user)
         db.session.commit()
         return serialize_preferences(pref)
@@ -493,6 +495,8 @@ def upload_profile_photo(user: User, file_storage, is_primary_requested: bool = 
         )
         db.session.add(new_photo)
         if initial_status == 'ready':
+            db.session.flush()
+            db.session.expire(profile, ['photos'])
             sync_user_lifecycle_status(user)
         db.session.commit()
         return serialize_photo(new_photo)

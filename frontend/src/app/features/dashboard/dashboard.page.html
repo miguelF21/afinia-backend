@@ -23,6 +23,8 @@
     </div>
   </header>
 
+  <p class="swipe-error" role="alert" *ngIf="swipeError">{{ swipeError }}</p>
+
   <div class="stage rise-2" *ngIf="currentProfile as p; else empty">
     <!-- Tarjeta de fondo -->
     <article class="card-p back" *ngIf="nextProfile as n" [class.lift]="leaving">
